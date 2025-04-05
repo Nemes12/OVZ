@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Онлайн редактор кода с поддержкой HTML и CSS">
+  <title>RJG Project</title>
+
+  <!-- Подключаем шрифт Fira Code -->
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="cm.css">
+  <!-- CodeMirror CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/codemirror.min.css"
+    onerror="console.error('Ошибка загрузки CodeMirror CSS')">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/theme/dracula.min.css"
+    onerror="console.error('Ошибка загрузки темы Dracula')">
+  <!-- Three.js для 3D анимации -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+  <!-- Preload critical resources -->
+  <link rel="preload" href="js/socket-service.js" as="script">
+  <!-- Font Awesome для иконок -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+  <!-- Оверлей инициализации кода -->
+  <div id="init-overlay" class="init-overlay" style="display: none;">
+    <div class="init-animation-container"></div>
+    <div class="init-content">
+      <button id="init-button" class="init-button" style="display: none;">
+        <div class="button-content">
+          <span class="button-label">Запустить код</span>
+        </div>
+      </button>
+      <div id="init-status" class="init-status">
+        <div class="loading-dots">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+      <div class="online-users" style="display: none;">
+        Онлайн: <span id="online-users-count">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Основной контейнер (изначально скрыт) -->
+  <div class="container" style="display: none;">
+    <div class="left">
+      <div class="div-codemirror" id="html-editor-container">
+        <div class="editor-header">
+          <div class="editor-title">
+            <i class="fa-brands fa-html5"></i>HTML
+            <span id="last-html-editor" class="last-editor"></span>
+          </div>
+          <div class="editor-actions">
+            <button id="html-fullscreen-btn" class="fullscreen-btn" title="Полноэкранный режим" onclick="codeEditor.toggleFullscreen('html')">
+              <i class="fas fa-expand"></i>
+            </button>
+          </div>
+        </div>
+        <div id="html-code"></div>
+      </div>
+
+      <div class="div-codemirror" id="css-editor-container">
+        <div class="editor-header">
+          <div class="editor-title">
+            <i class="fa-brands fa-css3-alt"></i>CSS
+            <span id="last-css-editor" class="last-editor"></span>
+          </div>
+          <div class="editor-actions">
+            <button id="css-fullscreen-btn" class="fullscreen-btn" title="Полноэкранный режим" onclick="codeEditor.toggleFullscreen('css')">
+              <i class="fas fa-expand"></i>
+            </button>
+          </div>
+        </div>
+        <div id="css-code">
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <label><i class="fa-solid fa-play"></i>Output</label>
+      <div class="border"><iframe id="output"></iframe></div>
+    </div>
+  </div>
+
+  <!-- Предварительный просмотр для полноэкранного режима -->
+  <div class="result-preview" id="result-preview">
+    <iframe id="preview-output"></iframe>
+  </div>
+
+  <!-- Контейнер для отображения результата рядом с полноэкранным редактором -->
+  <div class="result-container" id="fullscreen-result">
+    <div class="result-header">
+      <i class="fa-solid fa-play"></i> Результат
+    </div>
+    <iframe id="fullscreen-output"></iframe>
+  </div>
+
+  <!-- Уведомления -->
+  <div id="error-notification" class="error-notification"></div>
+  <div id="success-notification" class="success-notification"></div>
+
+  <!-- Модальное окно входа (изначально показано) -->
+  <div id="login-modal" class="login-modal" style="display: flex;">
+    <div class="login-content">
+      <h2>Добро пожаловать!</h2>
+      <div class="login-buttons">
+        <button id="login-btn" class="login-btn">Вход</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно формы входа -->
+  <div id="login-form-modal" class="login-modal" style="display: none;">
+    <div class="login-content">
+      <h2>Вход</h2>
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <input type="text" id="team-name" placeholder="Название команды" required>
+        </div>
+        <div class="form-buttons">
+          <button type="submit" class="login-btn">Войти</button>
+          <button type="button" class="guest-btn" id="back-to-main">Назад</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Сначала подключаем основной CodeMirror -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+
+  <!-- Затем режимы -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+
+  <!-- Затем аддоны -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closetag.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/scroll/simplescrollbars.min.js"></script>
+
+  <!-- Подключаем Socket.io -->
+  <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+
+  <!-- Наши модули -->
+  <script src="js/socket-service.js"></script>
+  <script src="js/auth-modal.js"></script>
+  <script src="js/code-editor.js"></script>
+  <script src="js/cursor-manager.js"></script>
+
+
+  </div>
+  </div>
+</body>
+
+</html>

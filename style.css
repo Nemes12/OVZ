@@ -1,0 +1,1022 @@
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    font-family: 'poppins', sans-serif;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-color: #1a1a1a;
+    --text-color: #fff;
+    --editor-bg: #2d2d2d;
+    --border-color: #444;
+    --error-color: #ff4444;
+    --success-color: #00C851;
+    --transition-speed: 0.3s;
+    --button-color: #bd93f9;
+    --button-size: 120px;
+    --font-size-base: 16px;
+    --font-size-small: 14px;
+    --font-size-large: 18px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #1a1a1a;
+        --text-color: #e0e0e0;
+        --editor-bg: #2d2d2d;
+        --border-color: #444;
+    }
+}
+
+html {
+    font-size: 100%;
+}
+
+body {
+    background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+    color: var(--text-color);
+    overflow: hidden;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+body.fullscreen-active {
+    overflow: hidden;
+}
+
+/* Overlay для инициализации кода */
+.init-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(23, 23, 23, 0.97), rgba(17, 17, 17, 0.98));
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.init-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center;
+}
+
+/* Стили для точек загрузки */
+.loading-dots {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.loading-dots span {
+    width: 8px;
+    height: 8px;
+    background-color: var(--button-color);
+    border-radius: 50%;
+    display: inline-block;
+    animation: dots 1.4s infinite ease-in-out;
+}
+
+.loading-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes dots {
+    0%, 80%, 100% { 
+        transform: scale(0);
+        opacity: 0.3;
+    }
+    40% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Обновленные стили для статуса инициализации */
+.init-status {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 500;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.init-status.show {
+    opacity: 1;
+}
+
+.online-users {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: opacity 0.3s ease;
+}
+
+.online-users-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#online-users-count {
+    font-weight: bold;
+    color: var(--button-color, #bd93f9);
+}
+
+#online-users-count.updated {
+    animation: pulse 0.3s ease;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.init-animation-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10000;
+}
+
+.particle {
+    position: absolute;
+    background-color: #50fa7b;
+    border-radius: 50%;
+    opacity: 0.8;
+    pointer-events: none;
+    animation: particleAnimation 1s ease-out forwards;
+}
+
+@keyframes particleAnimation {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+.code-particle {
+    position: absolute;
+    font-size: 16px;
+    font-family: monospace;
+    opacity: 0;
+    transform: scale(0.5);
+    animation: codeParticleAnimation 1s ease-out forwards;
+}
+
+@keyframes codeParticleAnimation {
+    0% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+.code-path {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: drawPath 1.5s ease-out forwards;
+}
+
+@keyframes drawPath {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* Layout */
+.container {
+    width: 100%;
+    height: 100vh;
+    padding: 20px;
+    display: flex;
+    gap: 20px;
+    overflow: hidden;
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #282a36;
+    padding: 5px 10px;
+    border-bottom: 1px solid #3d3f56;
+}
+
+.editor-title {
+    display: flex;
+    align-items: center;
+    color: #f8f8f2;
+    font-weight: 500;
+}
+
+.editor-title i {
+    margin-right: 5px;
+    color: #ff79c6;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.fullscreen-btn {
+    background: none;
+    border: none;
+    color: #8be9fd;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fullscreen-btn:hover {
+    background-color: rgba(139, 233, 253, 0.1);
+    color: #f8f8f2;
+}
+
+.fullscreen-btn:active {
+    transform: scale(0.95);
+}
+
+.fullscreen-mode {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 80% !important;
+    height: 100% !important;
+    z-index: 9999;
+    background-color: #282a36;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.fullscreen-mode .CodeMirror {
+    height: calc(100% - 35px) !important;
+    flex: 1;
+    font-size: 16px;
+}
+
+.fullscreen-mode .editor-header {
+    padding: 10px 20px;
+    background-color: #1e1f29;
+    border-bottom: 2px solid #bd93f9;
+}
+
+.fullscreen-mode .editor-title {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.fullscreen-mode .fullscreen-btn {
+    padding: 5px 8px;
+    font-size: 16px;
+    background-color: rgba(189, 147, 249, 0.1);
+}
+
+.fullscreen-mode .fullscreen-btn:hover {
+    background-color: rgba(189, 147, 249, 0.2);
+}
+
+/* Анимация переключения полноэкранного режима */
+.div-codemirror {
+    transition: all 0.3s ease;
+}
+
+/* Editor sections */
+.right {
+    flex-basis: 50%;
+    padding: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.left {
+    display: flex;
+    flex-direction: column;
+    flex-basis: 50%;
+    padding: 10px;
+    width: 100%;
+    gap: 20px;
+    overflow: hidden;
+}
+
+/* Output iframe */
+iframe {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    border: 0;
+    outline: 0;
+    display: block;
+    flex: 1;
+}
+
+.border {
+    position: relative;
+    /* Чтобы псевдоэлемент позиционировался относительно .border */
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    border: 0;
+    outline: 0;
+    display: block;
+    flex: 1;
+}
+
+/* Создаём анимированный градиент вокруг элемента */
+.border::before {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    /* Размер бордера */
+    background: linear-gradient(45deg, #ff0000, #ff7300, white, #8000ff, #ff0080, #ff0000);
+    background-size: 300% 300%;
+    /* Растягиваем градиент для эффекта движения */
+    border-radius: 10px;
+    /* Скругление углов */
+    z-index: -1;
+    /* Размещаем под контентом */
+    animation: gradient-border 3s linear infinite;
+}
+
+/* Анимация движения градиента */
+@keyframes gradient-border {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Labels */
+label i {
+    margin-right: 10px;
+}
+
+label {
+    display: flex;
+    align-items: center;
+    background: #000;
+    height: 30px;
+    padding: 0 10px;
+    transition: background-color var(--transition-speed);
+}
+
+/* CodeMirror customization */
+.div-codemirror {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--editor-bg);
+    padding: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    transition: background-color var(--transition-speed);
+}
+
+.height {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#html-code,
+#css-code {
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Error notification */
+.error-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    background: var(--error-color);
+    color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all var(--transition-speed);
+    z-index: 1000;
+}
+
+.error-notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Success notification */
+.success-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    background: var(--success-color);
+    color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all var(--transition-speed);
+    z-index: 1000;
+}
+
+.success-notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Стили для модального окна входа */
+.login-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    backdrop-filter: blur(15px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 11000;
+}
+
+.login-content {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+    padding: 40px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    max-width: 90%;
+    width: 400px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    animation: fadeIn 0.5s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, 
+        rgba(189, 147, 249, 0.1),
+        rgba(255, 121, 198, 0.1),
+        rgba(80, 250, 123, 0.1)
+    );
+    z-index: 0;
+}
+
+.login-content > * {
+    position: relative;
+    z-index: 1;
+}
+
+.login-content h2 {
+    color: #2c2c2c;
+    margin-bottom: 30px;
+    font-size: 28px;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    letter-spacing: 1px;
+}
+
+.login-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.login-btn,
+.guest-btn {
+    padding: 10px 25px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all var(--transition-speed);
+}
+
+.login-btn {
+    background: linear-gradient(145deg, #bd93f9, #9d65f5);
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(189, 147, 249, 0.3);
+}
+
+.login-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(189, 147, 249, 0.4);
+}
+
+.login-btn:active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(189, 147, 249, 0.3);
+}
+
+.guest-btn {
+    background: #bd93f9;
+    color: white;
+}
+
+.login-btn:hover,
+.guest-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Стили для формы входа */
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.form-group {
+    position: relative;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid rgba(189, 147, 249, 0.3);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #2c2c2c;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #bd93f9;
+    box-shadow: 0 0 0 3px rgba(189, 147, 249, 0.2);
+}
+
+.form-group input::placeholder {
+    color: #999;
+}
+
+.form-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.form-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all var(--transition-speed);
+}
+
+.form-buttons button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Стили для курсоров */
+.cursor {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background-color: #ff0000;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transition: all 0.1s ease;
+}
+
+.cursor-label {
+    position: absolute;
+    top: 15px;
+    left: 0;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Индикатор последнего редактора */
+.last-editor {
+    font-size: 12px;
+    color: #6272a4;
+    margin-top: 5px;
+}
+
+.last-editor.editing {
+    color: var(--button-color);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Кнопка форматирования кода */
+.format-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #bd93f9;
+    color: white;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    z-index: 999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.format-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+.format-btn:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Добавляем стили для анимации потока кода */
+@keyframes flow-path {
+    0% {
+        stroke-dashoffset: 1000;
+    }
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes float-code {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    50% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+    100% { transform: translateY(-40px) scale(0.8); opacity: 0; }
+}
+
+.code-path {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: drawPath 1.5s ease-out forwards;
+}
+
+.code-particle {
+    position: absolute;
+    font-family: monospace;
+    color: var(--button-color);
+    pointer-events: none;
+}
+
+/* Стили для эффекта "печатающейся" анимации в редакторах */
+.CodeMirror .cm-tag, 
+.CodeMirror .cm-bracket,
+.CodeMirror .cm-attribute, 
+.CodeMirror .cm-string,
+.CodeMirror .cm-keyword,
+.CodeMirror .cm-property, 
+.CodeMirror .cm-number,
+.CodeMirror .cm-operator,
+.CodeMirror .cm-punctuation {
+    transition: text-shadow 0.2s ease;
+}
+
+.CodeMirror.typing .cm-tag, 
+.CodeMirror.typing .cm-bracket {
+    text-shadow: 0 0 8px rgba(255, 121, 198, 0.8);
+}
+
+.CodeMirror.typing .cm-property, 
+.CodeMirror.typing .cm-attribute {
+    text-shadow: 0 0 8px rgba(80, 250, 123, 0.8);
+}
+
+.CodeMirror.typing .cm-string,
+.CodeMirror.typing .cm-keyword {
+    text-shadow: 0 0 8px rgba(189, 147, 249, 0.8);
+}
+
+/* Стили для режима только для чтения */
+.CodeMirror.readonly .CodeMirror-cursor {
+    border-left: 2px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.CodeMirror.readonly::after {
+    content: "Только просмотр";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(255, 0, 0, 0.3);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: white;
+    z-index: 10;
+}
+
+/* Улучшенная адаптивность для различных устройств */
+/* Мобильные телефоны (портретная ориентация) */
+@media (max-width: 576px) {
+    .container {
+        flex-direction: column;
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .left, .right {
+        flex-basis: auto;
+        padding: 5px;
+    }
+
+    .left {
+        height: 60vh;
+    }
+
+    .right {
+        height: 40vh;
+    }
+
+    .error-notification, .success-notification {
+        left: 10px;
+        right: 10px;
+        width: auto;
+        text-align: center;
+    }
+
+    .format-btn {
+        bottom: 15px;
+        right: 15px;
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+
+    .login-content {
+        padding: 20px;
+    }
+
+    .form-buttons button {
+        padding: 8px;
+        font-size: 14px;
+    }
+    
+    .button-content {
+        font-size: 2rem;
+    }
+    
+    .button-label {
+        font-size: 14px;
+    }
+    
+    .init-button {
+        --button-size: 100px;
+    }
+}
+
+/* Мобильные телефоны (альбомная ориентация) */
+@media (min-width: 576px) and (max-width: 767px) {
+    .container {
+        gap: 10px;
+        padding: 10px;
+    }
+    
+    .left, .right {
+        padding: 5px;
+    }
+}
+
+/* Планшеты */
+@media (min-width: 768px) and (max-width: 991px) {
+    .container {
+        gap: 15px;
+    }
+}
+
+/* Настольные компьютеры с маленьким экраном */
+@media (min-width: 992px) and (max-width: 1199px) {
+    /* Настройки для десктопных устройств с маленьким экраном */
+}
+
+/* Настольные компьютеры с большим экраном */
+@media (min-width: 1200px) {
+    /* Настройки для больших десктопных устройств */
+}
+
+/* Настройки для устройств с высокой плотностью пикселей */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    html {
+        font-size: 110%;
+    }
+}
+
+/* Настройки для устройств с сенсорным экраном */
+@media (hover: none) {
+    .format-btn:hover, .login-btn:hover, .guest-btn:hover {
+        transform: none;
+        box-shadow: none;
+    }
+}
+
+/* Кнопка выхода - дополнительные стили */
+.logout-btn {
+    transition: all 0.3s ease;
+}
+
+.logout-btn:active {
+    transform: scale(0.9);
+}
+
+.code-part {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    transform: scale(0.9);
+}
+
+.image-container:hover .code-part {
+    display: block;
+    opacity: 1;
+    transform: scale(1);
+}
+
+.image-container {
+    position: relative;
+}
+
+.code-part {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.init-button {
+    width: var(--button-size, 120px);
+    height: var(--button-size, 120px);
+    border-radius: 50%;
+    background: linear-gradient(145deg, #bd93f9, #9d65f5);
+    border: none;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(189, 147, 249, 0.4);
+    transition: all 0.3s ease;
+}
+
+.init-button:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(189, 147, 249, 0.6);
+}
+
+.init-button:active {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(189, 147, 249, 0.4);
+}
+
+.button-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.button-label {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-top: 8px;
+}
+
+/* Стили для отображения результата рядом с полноэкранным редактором */
+.result-container {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 20%;
+    height: 100%;
+    z-index: 9999;
+    background-color: #fff;
+    border-left: 3px solid #bd93f9;
+    display: none;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease-in-out;
+}
+
+.result-header {
+    background-color: #1e1f29;
+    color: #f8f8f2;
+    padding: 10px 20px;
+    font-weight: bold;
+    font-size: 16px;
+    border-bottom: 2px solid #bd93f9;
+    display: flex;
+    align-items: center;
+}
+
+.result-header i {
+    margin-right: 10px;
+    color: #50fa7b;
+}
+
+.result-container iframe {
+    width: 100%;
+    height: calc(100% - 44px);
+    border: none;
+}
+
+body.fullscreen-active .container {
+    overflow: visible;
+}
+
+body.fullscreen-active .result-container {
+    display: block;
+}

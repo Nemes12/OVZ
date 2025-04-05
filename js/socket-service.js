@@ -5,7 +5,8 @@ const socketService = (function() {
   let teamData = null;
   
   function init() {
-    socket = io('http://localhost:3000'); // Замените URL на ваш сервер
+    // Используем window.location.origin для автоматического определения URL
+    socket = io(window.location.origin); // Динамический URL, работает и локально, и на хостинге
     
     // Обработка событий Socket.io
     setupSocketEvents();

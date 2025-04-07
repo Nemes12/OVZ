@@ -1,8 +1,36 @@
+// В начале файла добавляем обработчики необработанных ошибок
+process.on('uncaughtException', (error) => {
+  console.error('Необработанное исключение:', error);
+  // Логируем ошибку, но не завершаем процесс
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Необработанное отклонение промиса:', reason);
+});
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
+import { getCodeData, updateCode, resetToInitialState } from './db.js';
+
+// Функция для логирования с временными метками
+function log(message, level = 'info') {
+  const timestamp = new Date().toISOString();
+  const formattedMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+  
+  switch(level) {
+    case 'error':
+      console.error(formattedMessage);
+      break;
+    case 'warn':
+      console.warn(formattedMessage);
+      break;
+    default:
+      console.log(formattedMessage);
+  }
+}
 
 const __dirname = path.resolve();
 
@@ -12,93 +40,116 @@ const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  // Добавляем настройки для оптимизации socket.io
+  transports: ['websocket', 'polling'],
+  pingTimeout: 30000,
+  pingInterval: 25000,
+  upgradeTimeout: 10000,
+  maxHttpBufferSize: 1e6 // 1MB
 });
 
 app.use(cors());
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname), {
+  // Добавляем кэширование для статических файлов
+  etag: true,
+  lastModified: true,
+  maxAge: 30000 // 30 секунд кэширования (подходит для разработки, для продакшена можно увеличить)
+}));
 
 // И добавим явный маршрут для корневого пути
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Хранение данных о пользователях и командах
-const teams = {};
+// Скрытый маршрут для сброса кодов к начальным значениям
+app.get('/RelOAD', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// API для сброса кодов
+app.post('/api/reset', async (req, res) => {
+  try {
+    const success = await Promise.resolve(resetToInitialState());
+    
+    if (!success) {
+      return res.status(500).json({ success: false, message: 'Ошибка при сбросе данных' });
+    }
+    
+    // Получаем обновленные данные
+    const codeData = getCodeData();
+    
+    // Инвалидируем кэш
+    codeDataCache = { ...codeData, timestamp: Date.now() };
+    
+    // Уведомляем всех клиентов о сбросе
+    io.emit('code_reset');
+    
+    // Отправляем обновленные данные всем клиентам
+    io.emit('html_updated', { 
+      html: codeData.html, 
+      teamName: 'admin' 
+    });
+    
+    io.emit('css_updated', { 
+      css: codeData.css, 
+      teamName: 'admin' 
+    });
+    
+    log('Данные успешно сброшены к начальному состоянию');
+    res.json({ success: true, message: 'Данные успешно сброшены' });
+  } catch (error) {
+    log(`Ошибка при сбросе данных: ${error.message}`, 'error');
+    res.status(500).json({ success: false, message: 'Ошибка при сбросе данных' });
+  }
+});
+
+// Хранение данных о пользователях
 const onlineUsers = {};
-const codeData = {
-  html: `<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <title>Изображения</title>
-</head>
-<body>
-    <div class="gallery">
- <!-- Рабоча зона команды 1-->       
-        <img class="img1" src="https://sun9-65.userapi.com/impg/UtNCKnF7FJR7wx9rpWbCw9k5WZdKFUbej5HQqA/CMwiXLXomTM.jpg?size=208x290&quality=95&sign=62fa5c78840d95aca2af76323fd9c4bb&type=album" alt="Изображение 1">
-        
- <!-- Рабоча зона команды 2-->       
-      <img class="img2" src="https://sun9-79.userapi.com/impg/9q_JmFSsTqNhD_Pc8a2JuxLueNkQyRfT59EeWQ/hU4UAOnK5s4.jpg?size=209x290&quality=95&sign=3903ae3486de5519b515ea50be4899e6&type=album" alt="Изображение 2">
-      
-  <!-- Рабоча зона команды 3-->      
-      <img class="img3" src="https://sun9-29.userapi.com/impg/_JqcvwgV7oNG8Zekk3w4hMQeL2ZYYIWI7GdCmA/HWNxhX5wzdQ.jpg?size=208x291&quality=95&sign=237c8d4da590e08588cf10e19ce8738d&type=album" alt="Изображение 3">
-        
-  <!-- Рабоча зона команды 4-->      
-      <img class="img4" src="https://sun9-37.userapi.com/impg/AeXefsKJbuq0mi1ngncZoGrX8SP9fmjkD0fYhg/0A72DM4-18U.jpg?size=209x291&quality=95&sign=87d47a4452a4f401fee59eb7761ae068&type=album" alt="Изображение 4">
-    </div>
-</body>
-</html>`,
-  css: `body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    background-color: #f0f0f0;
-}
 
-.gallery {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2 колонки */
-    gap: 0px; /* Расстояние между изображениями */
-}
+// Кэш для данных кода
+let codeDataCache = null;
+const CACHE_TTL = 30000; // 30 секунд
 
-.gallery img {
-    width: 100%; /* Ширина изображения 100% от ячейки */
-    height: auto; /* Автоматическая высота для сохранения пропорций */
+// Функция для получения данных с кэшированием
+function getCachedCodeData() {
+  const now = Date.now();
+  
+  // Если кэш отсутствует или устарел
+  if (!codeDataCache || (now - codeDataCache.timestamp > CACHE_TTL)) {
+    const freshData = getCodeData();
+    codeDataCache = { ...freshData, timestamp: now };
+  }
+  
+  // Возвращаем копию данных без временной метки
+  const { timestamp, ...data } = codeDataCache;
+  return data;
 }
-
-/*Рабоча зона команды 1*/
-.img1 {
-    max-width: 100%; /* Адаптивная ширина */
-    height: auto; /* Автоматическая высота для сохранения пропорций */  
-}
-
-/*Рабоча зона команды 2*/
-.img2 {
-    max-width: 100%; /* Адаптивная ширина */
-    height: auto; /* Автоматическая высота для сохранения пропорций */
-}
-
-/*Рабоча зона команды 3*/
-.img3 {
-    max-width: 100%; /* Адаптивная ширина */
-    height: auto; /* Автоматическая высота для сохранения пропорций */ 
-}
-
-/*Рабоча зона команды 4*/
-.img4 {
-    max-width: 100%; /* Адаптивная ширина */
-   height: auto; /* Автоматическая высота для сохранения пропорций */  
-}`
-};
 
 // Обработка соединений Socket.io
 io.on('connection', (socket) => {
-  console.log('Новое соединение:', socket.id);
+  log(`Новое соединение: ${socket.id}`);
+  
+  // Устанавливаем таймаут для активности сокета
+  let inactivityTimeout;
+  
+  const resetInactivityTimeout = () => {
+    clearTimeout(inactivityTimeout);
+    inactivityTimeout = setTimeout(() => {
+      // Отключаем неактивных пользователей через 2 часа
+      if (socket.connected) {
+        log(`Отключение ${socket.id} из-за неактивности`, 'warn');
+        socket.disconnect(true);
+      }
+    }, 2 * 60 * 60 * 1000); // 2 часа
+  };
+  
+  // Сбрасываем таймаут при любом событии от пользователя
+  socket.onAny(() => {
+    resetInactivityTimeout();
+  });
+  
+  resetInactivityTimeout(); // Инициализация таймаута
   
   // Обработка авторизации
   socket.on('auth', (data) => {
@@ -116,57 +167,97 @@ io.on('connection', (socket) => {
     // Обновляем счетчик онлайн пользователей
     io.emit('online_users_count', Object.keys(onlineUsers).length);
     
-    console.log(`Пользователь авторизован: ${teamName}`);
+    log(`Пользователь авторизован: ${teamName}`);
   });
 
   // Обработка инициализации кода
   socket.on('initialize_code', () => {
     const userData = onlineUsers[socket.id];
-    if (userData && userData.teamName === 'admin') {
-      console.log('Админ инициализировал код');
-      // Отправляем событие всем клиентам
-      io.emit('code_initialized');
-      
-      // Отправляем начальный код всем клиентам с небольшой задержкой
-      setTimeout(() => {
-        socket.broadcast.emit('html_updated', { 
-          html: codeData.html, 
-          teamName: 'admin' 
-        });
-        socket.broadcast.emit('css_updated', { 
-          css: codeData.css, 
-          teamName: 'admin' 
-        });
-        console.log('Начальный код отправлен всем клиентам');
-      }, 1000); // Добавляем 1 секунду задержки для надежности
-    }
+    if (!userData) return; // Пользователь должен быть авторизован
+    
+    log(`${userData.teamName} запросил инициализацию кода`);
+    
+    // Получаем актуальные данные из кэша
+    const codeData = getCachedCodeData();
+    
+    // Отправляем событие инициализации
+    socket.emit('code_initialized');
+    
+    // Отправляем начальный код с небольшой задержкой
+    setTimeout(() => {
+      socket.emit('html_updated', { 
+        html: codeData.html, 
+        teamName: 'system' 
+      });
+      socket.emit('css_updated', { 
+        css: codeData.css, 
+        teamName: 'system' 
+      });
+      log('Начальный код отправлен');
+    }, 300);
   });
   
   // Обновление HTML кода
   socket.on('update_html', (data) => {
     const { html, teamName } = data;
-    codeData.html = html;
     
-    // Отправляем обновление всем, кроме отправителя
-    socket.broadcast.emit('html_updated', { html, teamName });
+    // Проверяем авторизацию пользователя
+    const userData = onlineUsers[socket.id];
+    if (!userData || userData.teamName !== teamName) return;
     
-    console.log(`HTML обновлен командой: ${teamName}`);
+    // Сохраняем HTML в базу данных
+    updateCode('html', html, teamName)
+      .then(() => {
+        // Обновляем кэш
+        if (codeDataCache) {
+          codeDataCache.html = html;
+          codeDataCache.timestamp = Date.now();
+        }
+        
+        // Отправляем обновление всем, кроме отправителя
+        socket.broadcast.emit('html_updated', { html, teamName });
+        
+        log(`HTML обновлен командой: ${teamName}`);
+      })
+      .catch((error) => {
+        log(`Ошибка при обновлении HTML: ${error.message}`, 'error');
+      });
   });
   
   // Обновление кода CSS
   socket.on('update_css', (data) => {
     const { css, teamName } = data;
-    codeData.css = css;
     
-    // Отправляем обновление всем, кроме отправителя
-    socket.broadcast.emit('css_updated', { css, teamName });
+    // Проверяем авторизацию пользователя
+    const userData = onlineUsers[socket.id];
+    if (!userData || userData.teamName !== teamName) return;
     
-    console.log(`CSS обновлен командой: ${teamName}`);
+    // Сохраняем CSS в базу данных
+    updateCode('css', css, teamName)
+      .then(() => {
+        // Обновляем кэш
+        if (codeDataCache) {
+          codeDataCache.css = css;
+          codeDataCache.timestamp = Date.now();
+        }
+        
+        // Отправляем обновление всем, кроме отправителя
+        socket.broadcast.emit('css_updated', { css, teamName });
+        
+        log(`CSS обновлен командой: ${teamName}`);
+      })
+      .catch((error) => {
+        log(`Ошибка при обновлении CSS: ${error.message}`, 'error');
+      });
   });
   
-  // Обновление позиции курсора
+  // Обновление позиции курсора (оптимизировано для частых обновлений)
   socket.on('cursor_position', (data) => {
     const { x, y, teamName } = data;
+    
+    // Проверяем авторизацию пользователя
+    const userData = onlineUsers[socket.id];
+    if (!userData || userData.teamName !== teamName) return;
     
     // Отправляем позицию курсора всем, кроме отправителя
     socket.broadcast.emit('cursor_moved', { x, y, teamName });
@@ -174,6 +265,8 @@ io.on('connection', (socket) => {
   
   // Обработка отключения
   socket.on('disconnect', () => {
+    clearTimeout(inactivityTimeout); // Очищаем таймаут при отключении
+    
     const userData = onlineUsers[socket.id];
     
     if (userData) {
@@ -188,14 +281,27 @@ io.on('connection', (socket) => {
       // Отправляем уведомление об отключении пользователя
       io.emit('user_disconnected', { teamName });
       
-      console.log(`Пользователь отключился: ${teamName}`);
+      log(`Пользователь отключился: ${teamName}`);
     }
     
-    console.log('Соединение закрыто:', socket.id);
+    log(`Соединение закрыто: ${socket.id}`);
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Сервер запущен на порту ${PORT}`);
+  log(`Сервер запущен на порту ${PORT}`);
+  
+  try {
+    // Инициализируем кэш при запуске сервера
+    const initialData = getCodeData();
+    if (initialData) {
+      codeDataCache = { ...initialData, timestamp: Date.now() };
+      log('Кэш кода успешно инициализирован');
+    } else {
+      log('Не удалось получить начальные данные для кэша', 'warn');
+    }
+  } catch (error) {
+    log(`Ошибка при инициализации кэша: ${error.message}`, 'error');
+  }
 });

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ панель</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .admin-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 1.5rem;
+        }
+        
+        .warning {
+            color: #e74c3c;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+        }
+        
+        .reset-button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        .reset-button:hover {
+            background-color: #c0392b;
+        }
+        
+        .reset-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .result-message {
+            margin-top: 1.5rem;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .back-link {
+            margin-top: 1.5rem;
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <h1>Админ панель</h1>
+        
+        <p class="warning">Внимание! Сброс данных приведет к восстановлению начальных значений HTML и CSS.</p>
+        
+        <button id="resetButton" class="reset-button">Сбросить данные</button>
+        
+        <div id="resultMessage" class="result-message"></div>
+        
+        <a href="/" class="back-link">Вернуться на главную</a>
+    </div>
+    
+    <script>
+        document.getElementById('resetButton').addEventListener('click', async function() {
+            const button = this;
+            const resultMessage = document.getElementById('resultMessage');
+            
+            // Блокируем кнопку во время запроса
+            button.disabled = true;
+            button.textContent = 'Выполняется сброс...';
+            
+            try {
+                const response = await fetch('/api/reset', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                resultMessage.style.display = 'block';
+                
+                if (data.success) {
+                    resultMessage.className = 'result-message success';
+                    resultMessage.textContent = data.message;
+                    
+                    // Разблокируем кнопку через 3 секунды
+                    setTimeout(() => {
+                        button.disabled = false;
+                        button.textContent = 'Сбросить данные';
+                    }, 3000);
+                } else {
+                    resultMessage.className = 'result-message error';
+                    resultMessage.textContent = data.message || 'Произошла ошибка при сбросе данных';
+                    
+                    // Разблокируем кнопку
+                    button.disabled = false;
+                    button.textContent = 'Сбросить данные';
+                }
+            } catch (error) {
+                resultMessage.style.display = 'block';
+                resultMessage.className = 'result-message error';
+                resultMessage.textContent = 'Ошибка соединения с сервером';
+                
+                // Разблокируем кнопку
+                button.disabled = false;
+                button.textContent = 'Сбросить данные';
+            }
+        });
+    </script>
+</body>
+</html> 

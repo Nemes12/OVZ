@@ -235,174 +235,202 @@ body.fullscreen-active {
     overflow: hidden;
 }
 
+.left {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.right {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.right .border {
+    flex: 1;
+    display: flex;
+    height: calc(100% - 30px);
+}
+
+.right iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+}
+
+.div-codemirror {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #1e1e1e;
+    transition: all 0.3s ease;
+    position: relative;
+    height: calc(50% - 4px);
+}
+
 .editor-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #282a36;
-    padding: 5px 10px;
-    border-bottom: 1px solid #3d3f56;
+    background-color: #2d2d2d;
+    color: white;
+    padding: 10px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom: 1px solid #444;
+    font-size: 14px;
+    font-weight: bold;
+    user-select: none;
 }
 
 .editor-title {
     display: flex;
     align-items: center;
-    color: #f8f8f2;
-    font-weight: 500;
 }
 
 .editor-title i {
-    margin-right: 5px;
-    color: #ff79c6;
+    margin-right: 6px;
+    font-size: 16px;
+}
+
+.editor-title .fa-html5 {
+    color: #e44d26;
+}
+
+.editor-title .fa-css3-alt {
+    color: #264de4;
 }
 
 .editor-actions {
     display: flex;
-    gap: 5px;
+    align-items: center;
 }
 
 .fullscreen-btn {
     background: none;
     border: none;
-    color: #8be9fd;
+    color: #ddd;
     cursor: pointer;
     font-size: 14px;
-    padding: 3px 6px;
-    border-radius: 3px;
-    transition: all 0.2s ease;
-    display: inline-flex;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
 }
 
 .fullscreen-btn:hover {
-    background-color: rgba(139, 233, 253, 0.1);
-    color: #f8f8f2;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
 }
 
 .fullscreen-btn:active {
     transform: scale(0.95);
 }
 
-.fullscreen-mode {
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    width: 80% !important;
-    height: 100% !important;
-    z-index: 9999;
-    background-color: #282a36;
-    display: flex;
-    flex-direction: column;
-    transition: all 0.3s ease-in-out;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-}
-
-.fullscreen-mode .CodeMirror {
-    height: calc(100% - 35px) !important;
+.div-codemirror > div:nth-child(2) {
     flex: 1;
-    font-size: 16px;
+    overflow: hidden;
+    height: calc(100% - 40px);
+    width: 100%;
 }
 
-.fullscreen-mode .editor-header {
-    padding: 10px 20px;
-    background-color: #1e1f29;
-    border-bottom: 2px solid #bd93f9;
+.fullscreen-active .fullscreen-btn i:before {
+    content: "\f066"; /* Иконка свернуть */
 }
 
-.fullscreen-mode .editor-title {
-    font-size: 18px;
-    font-weight: bold;
+/* Подсвечиваем активный режим полного экрана */
+.fullscreen-btn.active {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
-.fullscreen-mode .fullscreen-btn {
-    padding: 5px 8px;
-    font-size: 16px;
-    background-color: rgba(189, 147, 249, 0.1);
-}
-
-.fullscreen-mode .fullscreen-btn:hover {
-    background-color: rgba(189, 147, 249, 0.2);
-}
-
-/* Анимация переключения полноэкранного режима */
-.div-codemirror {
+/* Стили для анимированного переключения */
+.div-codemirror.fullscreen,
+#fullscreen-result {
     transition: all 0.3s ease;
 }
 
-/* Editor sections */
-.right {
-    flex-basis: 50%;
-    padding: 10px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.left {
-    display: flex;
-    flex-direction: column;
-    flex-basis: 50%;
-    padding: 10px;
-    width: 100%;
-    gap: 20px;
+#fullscreen-result {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100vh;
+    z-index: 1000;
+    background-color: #252525;
+    display: none;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
     overflow: hidden;
 }
 
-/* Output iframe */
-iframe {
+#fullscreen-result .result-header {
+    background-color: #2d2d2d;
+    color: white;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    border-bottom: 1px solid #444;
+    height: 40px;
+    display: flex;
+    align-items: center;
+}
+
+#fullscreen-output {
     width: 100%;
-    height: 100%;
-    background: #fff;
-    border: 0;
-    outline: 0;
+    height: calc(100vh - 40px);
+    border: none;
+    background: white;
     display: block;
-    flex: 1;
 }
 
-.border {
-    position: relative;
-    /* Чтобы псевдоэлемент позиционировался относительно .border */
+/* Проверяем наличие iframe с нужным фоном */
+#fullscreen-result iframe {
+    box-sizing: border-box;
     width: 100%;
-    height: 100%;
-    background: #fff;
-    border: 0;
-    outline: 0;
-    display: block;
-    flex: 1;
+    height: calc(100vh - 40px);
+    background-color: white;
+    border: none;
 }
 
-/* Создаём анимированный градиент вокруг элемента */
-.border::before {
-    content: "";
-    position: absolute;
-    top: -3px;
-    left: -3px;
-    right: -3px;
-    bottom: -3px;
-    /* Размер бордера */
-    background: linear-gradient(45deg, #ff0000, #ff7300, white, #8000ff, #ff0080, #ff0000);
-    background-size: 300% 300%;
-    /* Растягиваем градиент для эффекта движения */
-    border-radius: 10px;
-    /* Скругление углов */
-    z-index: -1;
-    /* Размещаем под контентом */
-    animation: gradient-border 3s linear infinite;
-}
-
-/* Анимация движения градиента */
-@keyframes gradient-border {
-    0% {
-        background-position: 0% 50%;
+/* Отзывчивый дизайн для мобильных устройств */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
     }
-
-    50% {
-        background-position: 100% 50%;
+    
+    .left, .right {
+        width: 100%;
     }
-
-    100% {
-        background-position: 0% 50%;
+    
+    .right {
+        margin-top: 10px;
+    }
+    
+    .div-codemirror {
+        height: 300px;
+    }
+    
+    .div-codemirror.fullscreen {
+        width: 100%;
+    }
+    
+    #fullscreen-result {
+        display: none !important;
+    }
+    
+    .mobile-device .fullscreen-btn,
+    body.fullscreen-active .fullscreen-btn {
+        display: none;
     }
 }
 
@@ -418,31 +446,6 @@ label {
     height: 30px;
     padding: 0 10px;
     transition: background-color var(--transition-speed);
-}
-
-/* CodeMirror customization */
-.div-codemirror {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background: var(--editor-bg);
-    padding: 10px;
-    border-radius: 5px;
-    overflow: hidden;
-    transition: background-color var(--transition-speed);
-}
-
-.height {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-#html-code,
-#css-code {
-    flex: 1;
-    overflow: hidden;
 }
 
 /* Error notification */
@@ -1019,4 +1022,260 @@ body.fullscreen-active .container {
 
 body.fullscreen-active .result-container {
     display: block;
+}
+
+@media (max-width: 768px) {
+    /* Мобильный режим */
+    .container {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .left, .right {
+        width: 100%;
+        height: auto;
+    }
+    
+    .div-codemirror {
+        height: 300px;
+    }
+    
+    .right {
+        height: 300px;
+    }
+    
+    .mobile-layout .left {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .mobile-device .editor-title {
+        font-size: 14px;
+    }
+    
+    .mobile-device .editor-actions button {
+        padding: 4px 6px;
+    }
+    
+    /* Улучшения для сенсорных устройств */
+    .mobile-device button, 
+    .mobile-device .fullscreen-btn,
+    .mobile-device .login-btn {
+        min-height: 44px; /* Рекомендуемый минимальный размер для touch target */
+    }
+    
+    .mobile-device input[type="text"] {
+        font-size: 16px; /* Предотвращает зум на iOS при фокусе */
+        min-height: 44px;
+    }
+    
+    /* Корректировка модального окна входа для мобильных устройств */
+    .mobile-device .login-content {
+        width: 90%;
+        max-width: 320px;
+    }
+}
+
+/* Добавляем анимацию для обновления индикатора редактора */
+.last-editor.updated {
+    animation: pulse 0.5s ease;
+}
+
+/* Улучшенные стили для мобильных устройств */
+.mobile-device .login-modal {
+    align-items: flex-start;
+    padding-top: 10vh;
+}
+
+/* Оптимизация перетаскивания разделителя */
+.resizer {
+    background-color: var(--border-color);
+    cursor: col-resize;
+    width: 8px;
+    margin: 0 -4px;
+    z-index: 2;
+    position: relative;
+}
+
+.resizer:hover {
+    background-color: var(--button-color);
+}
+
+/* Стили для всплывающих уведомлений */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.notification {
+    background: linear-gradient(145deg, rgba(60, 60, 60, 0.9), rgba(40, 40, 40, 0.95));
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    max-width: 400px;
+    transform: translateX(100%);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.notification.success {
+    border-left: 4px solid var(--success-color);
+}
+
+.notification.error {
+    border-left: 4px solid var(--error-color);
+}
+
+.notification-icon {
+    font-size: 18px;
+}
+
+.notification-message {
+    flex: 1;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+}
+
+.notification-close:hover {
+    color: #fff;
+}
+
+/* Оптимизированные анимации */
+@keyframes pulse {
+    0% { opacity: 0.5; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* Новый стиль для улучшения контрастности в редакторе */
+.CodeMirror-selected { 
+    background: rgba(255, 255, 255, 0.15) !important; 
+}
+
+.CodeMirror-focused .CodeMirror-selected { 
+    background: rgba(120, 100, 255, 0.25) !important; 
+}
+
+/* Стили для полноэкранного режима редакторов */
+.div-codemirror.fullscreen {
+    position: fixed;
+    width: 50%;
+    left: 0;
+    top: 0;
+    height: 100vh !important;
+    z-index: 1000;
+    background-color: #1e1e1e;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+body.fullscreen-active {
+    overflow: hidden;
+}
+
+.fullscreen .editor-header {
+    border-radius: 0;
+    border-bottom: 1px solid #444;
+    background-color: #2d2d2d;
+}
+
+.fullscreen .CodeMirror {
+    height: calc(100vh - 40px) !important;
+    max-height: none !important;
+}
+
+#fullscreen-result {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100vh;
+    z-index: 1000;
+    background-color: #252525;
+    display: none;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+#fullscreen-result .result-header {
+    background-color: #2d2d2d;
+    color: white;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    border-bottom: 1px solid #444;
+    height: 40px;
+    display: flex;
+    align-items: center;
+}
+
+#fullscreen-output {
+    width: 100%;
+    height: calc(100vh - 40px);
+    border: none;
+    background: white;
+    display: block;
+}
+
+/* Проверяем наличие iframe с нужным фоном */
+#fullscreen-result iframe {
+    box-sizing: border-box;
+    width: 100%;
+    height: calc(100vh - 40px);
+    background-color: white;
+    border: none;
+}
+
+/* Добавляем стили для улучшения UX в полноэкранном режиме */
+.fullscreen-active .fullscreen-btn i:before {
+    content: "\f066"; /* Иконка свернуть */
+}
+
+/* Убираем скролл в полноэкранном режиме */
+.div-codemirror.fullscreen .CodeMirror-vscrollbar,
+.div-codemirror.fullscreen .CodeMirror-hscrollbar {
+    z-index: 10;
+}
+
+/* Подсвечиваем активный режим полного экрана */
+.fullscreen-btn.active {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Стили для анимированного переключения */
+.div-codemirror.fullscreen,
+#fullscreen-result {
+    transition: all 0.3s ease;
+}
+
+/* Стили для редактора Monaco */
+.monaco-editor, .monaco-editor .overflow-guard {
+    border-radius: 0;
+    height: 100% !important;
+    width: 100% !important;
 }

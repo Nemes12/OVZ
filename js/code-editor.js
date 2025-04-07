@@ -58,70 +58,70 @@ class CodeEditor {
         this.codeData = {
             html: `<!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <title>Изображения</title>
-</head>
-<body>
-    <div class="gallery">
- <!-- Рабоча зона команды 1-->       
-        <img class="img1" src="https://sun9-65.userapi.com/impg/UtNCKnF7FJR7wx9rpWbCw9k5WZdKFUbej5HQqA/CMwiXLXomTM.jpg?size=208x290&quality=95&sign=62fa5c78840d95aca2af76323fd9c4bb&type=album" alt="Изображение 1">
-        
- <!-- Рабоча зона команды 2-->       
-      <img class="img2" src="https://sun9-79.userapi.com/impg/9q_JmFSsTqNhD_Pc8a2JuxLueNkQyRfT59EeWQ/hU4UAOnK5s4.jpg?size=209x290&quality=95&sign=3903ae3486de5519b515ea50be4899e6&type=album" alt="Изображение 2">
-      
-  <!-- Рабоча зона команды 3-->      
-      <img class="img3" src="https://sun9-29.userapi.com/impg/_JqcvwgV7oNG8Zekk3w4hMQeL2ZYYIWI7GdCmA/HWNxhX5wzdQ.jpg?size=208x291&quality=95&sign=237c8d4da590e08588cf10e19ce8738d&type=album" alt="Изображение 3">
-        
-  <!-- Рабоча зона команды 4-->      
-      <img class="img4" src="https://sun9-37.userapi.com/impg/AeXefsKJbuq0mi1ngncZoGrX8SP9fmjkD0fYhg/0A72DM4-18U.jpg?size=209x291&quality=95&sign=87d47a4452a4f401fee59eb7761ae068&type=album" alt="Изображение 4">
-    </div>
-</body>
-</html>`,
-            css: `body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    background-color: #f0f0f0;
-}
+<head>     
+  <meta charset="UTF-8">     
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">     
+  <link rel="stylesheet" href="style.css">   
+  <title>Изображения</title>
+ </head>
+ <body>     
+  <div class="gallery">  
+   <!-- Рабоча зона команды 1-->                
+   <img class="img1" src="" alt="Изображение 1">          
+    
+   <!-- Рабоча зона команды 2-->              
+   <img class="img2" src="" alt="Изображение 2">         
+    
+   <!-- Рабоча зона команды 3-->            
+    <img class="img3" src="" alt="Изображение 3">            
+     
+   <!-- Рабоча зона команды 4-->            
+    <img class="img4" src="" alt="Изображение 4">    
+   
+   </div> 
+   </body> 
+  </html>`,
+            css: `body {     
+ display: flex;    
+ justify-content: center;     
+ align-items: center;     
+ height: 100vh;     
+ margin: 0;     
+ background-color: #f0f0f0; 
+}  
 
-.gallery {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2 колонки */
-    gap: 0px; /* Расстояние между изображениями */
-}
+.gallery {    
+ display: grid;     
+ grid-template-columns: repeat(2, 1fr);     /* 2 колонки */     
+ gap: 0px;     /* Расстояние между изображениями */ 
+}  
 
-.gallery img {
-    width: 100%; /* Ширина изображения 100% от ячейки */
-    height: auto; /* Автоматическая высота для сохранения пропорций */
-}
+.gallery img {     
+ width: 100%;     /* Ширина изображения 100% от ячейки */     
+ height: auto;     /* Автоматическая высота для сохранения пропорций */ } 
 
 /*Рабоча зона команды 1*/
-.img1 {
-    max-width: 100%; /* Адаптивная ширина */
-    height: auto; /* Автоматическая высота для сохранения пропорций */  
-}
+.img1 {    
+ max-width: 100%;     /* Адаптивная ширина */    
+ height: auto;     /* Автоматическая высота для сохранения пропорций */ 
+}  
 
 /*Рабоча зона команды 2*/
-.img2 {
-    max-width: 100%; /* Адаптивная ширина */
-    height: auto; /* Автоматическая высота для сохранения пропорций */
-}
+.img2 {    
+ max-width: 100%;     /* Адаптивная ширина */    
+ height: auto;     /* Автоматическая высота для сохранения пропорций */ 
+}  
 
 /*Рабоча зона команды 3*/
-.img3 {
-    max-width: 100%; /* Адаптивная ширина */
-    height: auto; /* Автоматическая высота для сохранения пропорций */ 
-}
+.img3 {    
+ max-width: 100%;     /* Адаптивная ширина */    
+ height: auto;     /* Автоматическая высота для сохранения пропорций */ 
+}  
 
 /*Рабоча зона команды 4*/
-.img4 {
-    max-width: 100%; /* Адаптивная ширина */
-    height: auto; /* Автоматическая высота для сохранения пропорций */  
+.img4 {    
+ max-width: 100%;     /* Адаптивная ширина */    
+ height: auto;     /* Автоматическая высота для сохранения пропорций */ 
 }`
         };
         this.editorsDirty = {

@@ -1,7 +1,7 @@
 // app-initializer.js
 // Модуль для инициализации всего приложения
 
-import { showNotification, throttle } from './utils.js';
+import { showNotification, throttle, showMergeNotification } from './utils.js';
 import SocketService from './socket-service.js';
 import { CursorManager } from './cursor-manager.js';
 import { AuthModal } from './auth-modal.js';
@@ -78,6 +78,18 @@ export class AppInitializer {
             this.socketService.connect();
             
             console.log('Приложение успешно инициализировано');
+
+            // Подписываемся на события слияния HTML
+            document.addEventListener('html_merged', (event) => {
+                const teamName = event.detail.teamName;
+                showMergeNotification(teamName, 'html');
+            });
+            
+            // Подписываемся на события слияния CSS
+            document.addEventListener('css_merged', (event) => {
+                const teamName = event.detail.teamName;
+                showMergeNotification(teamName, 'css');
+            });
         } catch (error) {
             console.error('Ошибка при инициализации приложения:', error);
             this._showError('Произошла ошибка при инициализации приложения');

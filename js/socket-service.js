@@ -1,7 +1,7 @@
 // socket-service.js
 // Модуль для работы с Socket.io
 
-import { debounce } from './utils.js';
+import { debounce, safeJSONParse } from './utils.js';
 
 /**
  * Оптимизированная функция логирования
@@ -23,6 +23,112 @@ function log(message, level = 'info') {
         default:
             console.log(`[Socket] ${message}`);
     }
+}
+
+/**
+ * Функция для создания дифференциального патча между двумя текстами
+ * @param {string} originalText - Исходный текст
+ * @param {string} newText - Новый текст
+ * @return {Object} Патч, содержащий различия между текстами
+ */
+function createDiffPatch(originalText, newText) {
+    // Простейшая реализация патча (в продакшене можно использовать библиотеку diff-match-patch)
+    return {
+        original: originalText,
+        new: newText
+    };
+}
+
+/**
+ * Функция для применения патча к тексту
+ * @param {string} text - Текст для изменения
+ * @param {Object} patch - Патч с изменениями
+ * @return {string} Обновленный текст
+ */
+function applyDiffPatch(text, patch) {
+    // Примитивный алгоритм слияния изменений
+    // Если текущий текст совпадает с оригинальным из патча, просто возвращаем новый
+    if (text === patch.original) {
+        return patch.new;
+    }
+    
+    // Иначе нужно попытаться слить изменения
+    return mergeDiffs(text, patch.original, patch.new);
+}
+
+/**
+ * Функция для слияния изменений
+ * @param {string} currentText - Текущий текст пользователя
+ * @param {string} originalText - Исходный текст, с которого создавался патч
+ * @param {string} newText - Новый текст после применения патча
+ * @return {string} Результат слияния
+ */
+function mergeDiffs(currentText, originalText, newText) {
+    // В простейшем случае, если текст местами совпадает с исходным или новым
+    if (currentText === originalText) return newText;
+    if (currentText === newText) return currentText;
+    
+    // Слияние блоками - разбиваем текст на строки и сравниваем
+    const currentLines = currentText.split('\n');
+    const originalLines = originalText.split('\n');
+    const newLines = newText.split('\n');
+    
+    // Результирующий массив строк
+    const resultLines = [];
+    
+    // Обходим все строки и применяем изменения
+    for (let i = 0; i < Math.max(currentLines.length, originalLines.length, newLines.length); i++) {
+        const currentLine = i < currentLines.length ? currentLines[i] : '';
+        const originalLine = i < originalLines.length ? originalLines[i] : '';
+        const newLine = i < newLines.length ? newLines[i] : '';
+        
+        // Если строка не изменилась в оригинале, но изменилась в новой версии
+        if (currentLine === originalLine && originalLine !== newLine) {
+            resultLines.push(newLine);
+        }
+        // Если строка изменилась локально, но не изменилась в общей версии
+        else if (currentLine !== originalLine && originalLine === newLine) {
+            resultLines.push(currentLine);
+        }
+        // Если строка изменилась и локально, и в общей версии
+        else if (currentLine !== originalLine && originalLine !== newLine) {
+            // Здесь можно добавить более сложную логику слияния
+            // Например, если изменения в разных частях строки
+            if (currentLine !== newLine) {
+                // Попытка умного слияния
+                resultLines.push(smartMergeLines(currentLine, originalLine, newLine));
+            } else {
+                resultLines.push(currentLine);
+            }
+        }
+        // Если строки совпадают во всех версиях
+        else {
+            resultLines.push(currentLine || newLine);
+        }
+    }
+    
+    return resultLines.join('\n');
+}
+
+/**
+ * Умное слияние изменений в одной строке
+ * @param {string} currentLine - Текущая строка пользователя
+ * @param {string} originalLine - Исходная строка
+ * @param {string} newLine - Новая строка от другого пользователя
+ * @return {string} Результат слияния
+ */
+function smartMergeLines(currentLine, originalLine, newLine) {
+    // Если изменения в разных частях строки - пытаемся их объединить
+    // Примитивно: если начало изменилось у нас, а конец у других
+    if (currentLine.startsWith(originalLine.substring(0, 3)) && newLine.endsWith(originalLine.substring(originalLine.length - 3))) {
+        return newLine.substring(0, newLine.length - 3) + currentLine.substring(3);
+    } 
+    // Если конец изменился у нас, а начало у других
+    else if (currentLine.endsWith(originalLine.substring(originalLine.length - 3)) && newLine.startsWith(originalLine.substring(0, 3))) {
+        return newLine.substring(0, newLine.length - 3) + currentLine.substring(3);
+    }
+    // Иначе приоритет локальным изменениям
+    return currentLine;
 }
 
 /**
@@ -75,6 +181,14 @@ export class SocketService {
         // Батчинг для обновлений курсора для снижения трафика
         this.pendingCursorUpdate = null;
         this.cursorUpdateInterval = 50; // 50ms для плавности
+        
+        // Состояние для дифференциальных обновлений
+        this.lastSyncedHtml = '';
+        this.lastSyncedCss = '';
+        this.localHtmlVersion = 0;
+        this.localCssVersion = 0;
+        this.remoteHtmlVersion = 0;
+        this.remoteCssVersion = 0;
         
         // Инициализация сокета
         this.init();
@@ -278,60 +392,104 @@ export class SocketService {
     
     /**
      * Обработчик обновления HTML кода
-     * @param {Function} listener - Функция-обработчик
+     * @param {string} html - Новый HTML код
      */
-    onHtmlUpdated(listener) {
-        // Создаем обертку для слушателя
-        const wrappedListener = (data) => {
-            // Добавляем отметку времени к обновлению
-            data.timestamp = Date.now();
-            
-            // Если текущая команда редактирует HTML или имеет выделение текста,
-            // сохраняем обновление для последующего применения (только если оно от другой команды)
-            if ((this.isEditingHtml || this.isHtmlSelectionActive) && data.teamName !== this.teamName) {
-                log(`Отложено обновление HTML от ${data.teamName}, так как редактируется или выделен текст локально`);
-                this.pendingHtmlUpdates[data.teamName] = data;
-                return; // Важно! Прерываем обработку, чтобы не вызывать оригинальный обработчик
-            }
-            
-            // Запускаем обработчик в любом другом случае
-            listener(data);
-        };
+    updateHtml(html) {
+        // Если мы уже редактируем, то сначала отменим предыдущий таймер сброса флага
+        if (this.editingHtmlTimer) {
+            clearTimeout(this.editingHtmlTimer);
+            // Если у нас уже был таймер, значит мы продолжаем редактирование
+            // Отправляем немедленное обновление для других пользователей
+            this._socketEmit('update_html', { 
+                html, 
+                teamName: this.teamName,
+                version: this.localHtmlVersion,
+                isContinuousEdit: true
+            });
+        } else {
+            // Устанавливаем флаг редактирования
+            this.isEditingHtml = true;
+            // Увеличиваем версию
+            this.localHtmlVersion++;
+            // Отправляем обновление на сервер НЕМЕДЛЕННО
+            this._socketEmit('update_html', { 
+                html, 
+                teamName: this.teamName,
+                version: this.localHtmlVersion
+            });
+        }
         
-        // Помечаем обертку для последующей идентификации
-        wrappedListener.isWrapper = true;
-        wrappedListener.originalHandler = listener;
+        // Сохраняем время последнего редактирования
+        this.lastEditedHtml = html;
         
-        this.htmlUpdatedListeners.push(wrappedListener);
+        // Устанавливаем новый таймер на заданное время
+        this.editingHtmlTimer = setTimeout(() => {
+            log(`Снят флаг редактирования HTML, прошло ${this.delayUpdateTime}ms`);
+            this.isEditingHtml = false;
+            this.editingHtmlTimer = null;
+            
+            // При снятии флага обновляем последнюю синхронизированную версию
+            this.lastSyncedHtml = html;
+            
+            // Отправляем финальное обновление
+            this._socketEmit('update_html', { 
+                html, 
+                teamName: this.teamName,
+                version: this.localHtmlVersion,
+                isFinalEdit: true
+            });
+        }, this.delayUpdateTime);
     }
     
     /**
      * Обработчик обновления CSS кода
-     * @param {Function} listener - Функция-обработчик
+     * @param {string} css - Новый CSS код
      */
-    onCssUpdated(listener) {
-        // Создаем обертку для слушателя
-        const wrappedListener = (data) => {
-            // Добавляем отметку времени к обновлению
-            data.timestamp = Date.now();
-            
-            // Если текущая команда редактирует CSS или имеет выделение текста,
-            // сохраняем обновление для последующего применения (только если оно от другой команды)
-            if ((this.isEditingCss || this.isCssSelectionActive) && data.teamName !== this.teamName) {
-                log(`Отложено обновление CSS от ${data.teamName}, так как редактируется или выделен текст локально`);
-                this.pendingCssUpdates[data.teamName] = data;
-                return; // Важно! Прерываем обработку, чтобы не вызывать оригинальный обработчик
-            }
-            
-            // Запускаем обработчик в любом другом случае
-            listener(data);
-        };
+    updateCss(css) {
+        // Если мы уже редактируем, то сначала отменим предыдущий таймер сброса флага
+        if (this.editingCssTimer) {
+            clearTimeout(this.editingCssTimer);
+            // Если у нас уже был таймер, значит мы продолжаем редактирование
+            // Отправляем немедленное обновление для других пользователей
+            this._socketEmit('update_css', { 
+                css, 
+                teamName: this.teamName,
+                version: this.localCssVersion,
+                isContinuousEdit: true
+            });
+        } else {
+            // Устанавливаем флаг редактирования
+            this.isEditingCss = true;
+            // Увеличиваем версию
+            this.localCssVersion++;
+            // Отправляем обновление на сервер НЕМЕДЛЕННО
+            this._socketEmit('update_css', { 
+                css, 
+                teamName: this.teamName,
+                version: this.localCssVersion
+            });
+        }
         
-        // Помечаем обертку для последующей идентификации
-        wrappedListener.isWrapper = true;
-        wrappedListener.originalHandler = listener;
+        // Сохраняем время последнего редактирования
+        this.lastEditedCss = css;
         
-        this.cssUpdatedListeners.push(wrappedListener);
+        // Устанавливаем новый таймер на заданное время
+        this.editingCssTimer = setTimeout(() => {
+            log(`Снят флаг редактирования CSS, прошло ${this.delayUpdateTime}ms`);
+            this.isEditingCss = false;
+            this.editingCssTimer = null;
+            
+            // При снятии флага обновляем последнюю синхронизированную версию
+            this.lastSyncedCss = css;
+            
+            // Отправляем финальное обновление
+            this._socketEmit('update_css', { 
+                css, 
+                teamName: this.teamName,
+                version: this.localCssVersion,
+                isFinalEdit: true
+            });
+        }, this.delayUpdateTime);
     }
     
     /**
@@ -499,12 +657,7 @@ export class SocketService {
      */
     setHtmlSelectionActive(isActive) {
         this.isHtmlSelectionActive = isActive;
-        
-        // Если выделение снято, и мы не редактируем код, 
-        // применяем все отложенные обновления HTML
-        if (!isActive && !this.isEditingHtml) {
-            setTimeout(() => this._applyPendingHtmlUpdates(), 100);
-        }
+        // В новой версии не требуется отдельная обработка отложенных обновлений
     }
     
     /**
@@ -513,16 +666,11 @@ export class SocketService {
      */
     setCssSelectionActive(isActive) {
         this.isCssSelectionActive = isActive;
-        
-        // Если выделение снято, и мы не редактируем код, 
-        // применяем все отложенные обновления CSS
-        if (!isActive && !this.isEditingCss) {
-            setTimeout(() => this._applyPendingCssUpdates(), 100);
-        }
+        // В новой версии не требуется отдельная обработка отложенных обновлений
     }
 
     /**
-     * Отправка сообщения об отложенных обновлениях на сервер
+     * Отправка сообщения на сервер
      * @private
      */
     _socketEmit(event, data) {
@@ -540,118 +688,12 @@ export class SocketService {
     }
     
     /**
-     * Обработчик обновления HTML кода
-     * @param {string} html - Новый HTML код
-     */
-    updateHtml(html) {
-        // Сохраняем время последнего редактирования
-        this.isEditingHtml = true;
-        this.lastEditedHtml = html;
-        
-        // Отправляем обновление на сервер НЕМЕДЛЕННО
-        this._socketEmit('update_html', { html, teamName: this.teamName });
-        
-        // Сбрасываем таймер редактирования
-        if (this.editingHtmlTimer) {
-            clearTimeout(this.editingHtmlTimer);
-        }
-        
-        // Устанавливаем новый таймер на 5 секунд
-        this.editingHtmlTimer = setTimeout(() => {
-            log(`Снят флаг редактирования HTML, прошло ${this.delayUpdateTime}ms`);
-            this.isEditingHtml = false;
-            this.editingHtmlTimer = null;
-            
-            // Применяем отложенные обновления, если они есть
-            this._applyPendingHtmlUpdates();
-        }, this.delayUpdateTime);
-    }
-    
-    /**
      * Обновление HTML-кода на сервере
      * @param {string} html - HTML-код для отправки
      * @private
      */
     _updateHtml(html) {
         this._socketEmit('update_html', { html, teamName: this.teamName });
-    }
-    
-    /**
-     * Применяет отложенные обновления HTML после окончания редактирования
-     * @private
-     */
-    _applyPendingHtmlUpdates() {
-        const pendingTeams = Object.keys(this.pendingHtmlUpdates);
-        if (pendingTeams.length === 0) return;
-        
-        // Применяем последнее обновление от каждой команды
-        log(`Применение отложенных HTML обновлений от ${pendingTeams.length} команд`);
-        
-        // Находим самое последнее обновление
-        let latestTeam = pendingTeams[0];
-        let latestUpdate = this.pendingHtmlUpdates[latestTeam];
-        
-        pendingTeams.forEach(team => {
-            const update = this.pendingHtmlUpdates[team];
-            if (update.timestamp > latestUpdate.timestamp) {
-                latestTeam = team;
-                latestUpdate = update;
-            }
-        });
-        
-        // Применяем самое последнее обновление
-        log(`Применение отложенного HTML обновления от команды ${latestTeam}`);
-        
-        // Важно! Оборачиваем в try-catch для отладки
-        try {
-            // Временно устанавливаем флаг программного обновления,
-            // чтобы другие обработчики не реагировали циклически
-            const wasProgrammaticallyUpdating = this.isProgrammaticallyUpdatingHtml;
-            this.isProgrammaticallyUpdatingHtml = true;
-            
-            // Вызываем оригинальные обработчики напрямую, минуя обертки
-            this.htmlUpdatedListeners.forEach(listener => {
-                if (listener.isWrapper && listener.originalHandler) {
-                    listener.originalHandler(latestUpdate);
-                }
-            });
-            
-            // Восстанавливаем состояние
-            this.isProgrammaticallyUpdatingHtml = wasProgrammaticallyUpdating;
-        } catch (error) {
-            log(`Ошибка при применении отложенных HTML обновлений: ${error.message}`, 'error');
-        }
-        
-        // Очищаем отложенные обновления
-        this.pendingHtmlUpdates = {};
-    }
-    
-    /**
-     * Обработчик обновления CSS кода
-     * @param {string} css - Новый CSS код
-     */
-    updateCss(css) {
-        // Сохраняем время последнего редактирования
-        this.isEditingCss = true;
-        this.lastEditedCss = css;
-        
-        // Отправляем обновление на сервер НЕМЕДЛЕННО
-        this._socketEmit('update_css', { css, teamName: this.teamName });
-        
-        // Сбрасываем таймер редактирования
-        if (this.editingCssTimer) {
-            clearTimeout(this.editingCssTimer);
-        }
-        
-        // Устанавливаем новый таймер на 5 секунд
-        this.editingCssTimer = setTimeout(() => {
-            log(`Снят флаг редактирования CSS, прошло ${this.delayUpdateTime}ms`);
-            this.isEditingCss = false;
-            this.editingCssTimer = null;
-            
-            // Применяем отложенные обновления, если они есть
-            this._applyPendingCssUpdates();
-        }, this.delayUpdateTime);
     }
     
     /**
@@ -662,55 +704,161 @@ export class SocketService {
     _updateCss(css) {
         this._socketEmit('update_css', { css, teamName: this.teamName });
     }
+
+    /**
+     * Добавляет обработчик для события обновления HTML
+     * @param {Function} listener - Функция-обработчик события
+     */
+    onHtmlUpdated(listener) {
+        // Создаем обертку для слушателя
+        const wrappedListener = (data) => {
+            // Добавляем отметку времени к обновлению
+            data.timestamp = Date.now();
+            data.version = data.version || 0;
+            
+            // Если пришла более старая версия, игнорируем
+            if (data.version < this.remoteHtmlVersion) {
+                log(`Игнорируем устаревшее обновление HTML версии ${data.version}, текущая удаленная версия ${this.remoteHtmlVersion}`);
+                return;
+            }
+            
+            // Если это продолжающееся редактирование, обрабатываем немедленно
+            if (data.isContinuousEdit) {
+                log(`Получено промежуточное обновление HTML от ${data.teamName}`);
+                listener(data);
+                return;
+            }
+            
+            // Обновляем версию
+            this.remoteHtmlVersion = data.version;
+            
+            // Если текущая команда редактирует HTML или имеет выделение текста,
+            // слияние необходимо применить умно
+            if ((this.isEditingHtml || this.isHtmlSelectionActive) && data.teamName !== this.teamName) {
+                log(`Умное слияние HTML от ${data.teamName} с локальными изменениями`);
+                
+                // Создаем патч между последней синхронизированной версией и пришедшей
+                const patch = createDiffPatch(this.lastSyncedHtml, data.html);
+                
+                // Получаем текущее значение HTML
+                const currentHtml = this.lastEditedHtml || this.lastSyncedHtml;
+                
+                // Применяем патч к текущему значению
+                const mergedHtml = applyDiffPatch(currentHtml, patch);
+                
+                // Обновляем последнюю синхронизированную версию
+                this.lastSyncedHtml = data.html;
+                
+                // Создаем новый объект данных с слитым HTML
+                const mergedData = {
+                    ...data,
+                    html: mergedHtml,
+                    isMerged: true
+                };
+                
+                // Уведомляем пользователя о слиянии изменений
+                if (mergedHtml !== currentHtml) {
+                    // Запустим всплывающее уведомление о слиянии
+                    document.dispatchEvent(new CustomEvent('html_merged', {
+                        detail: { teamName: data.teamName }
+                    }));
+                }
+                
+                // Запускаем обработчик с слитыми данными
+                listener(mergedData);
+                return;
+            }
+            
+            // Обновляем последнюю синхронизированную версию
+            this.lastSyncedHtml = data.html;
+            
+            // Запускаем обработчик в любом другом случае
+            listener(data);
+        };
+        
+        // Помечаем обертку для последующей идентификации
+        wrappedListener.isWrapper = true;
+        wrappedListener.originalHandler = listener;
+        
+        this.htmlUpdatedListeners.push(wrappedListener);
+    }
     
     /**
-     * Применяет отложенные обновления CSS после окончания редактирования
-     * @private
+     * Добавляет обработчик для события обновления CSS
+     * @param {Function} listener - Функция-обработчик события
      */
-    _applyPendingCssUpdates() {
-        const pendingTeams = Object.keys(this.pendingCssUpdates);
-        if (pendingTeams.length === 0) return;
-        
-        // Применяем последнее обновление от каждой команды
-        log(`Применение отложенных CSS обновлений от ${pendingTeams.length} команд`);
-        
-        // Находим самое последнее обновление
-        let latestTeam = pendingTeams[0];
-        let latestUpdate = this.pendingCssUpdates[latestTeam];
-        
-        pendingTeams.forEach(team => {
-            const update = this.pendingCssUpdates[team];
-            if (update.timestamp > latestUpdate.timestamp) {
-                latestTeam = team;
-                latestUpdate = update;
+    onCssUpdated(listener) {
+        // Создаем обертку для слушателя
+        const wrappedListener = (data) => {
+            // Добавляем отметку времени к обновлению
+            data.timestamp = Date.now();
+            data.version = data.version || 0;
+            
+            // Если пришла более старая версия, игнорируем
+            if (data.version < this.remoteCssVersion) {
+                log(`Игнорируем устаревшее обновление CSS версии ${data.version}, текущая удаленная версия ${this.remoteCssVersion}`);
+                return;
             }
-        });
-        
-        // Применяем самое последнее обновление
-        log(`Применение отложенного CSS обновления от команды ${latestTeam}`);
-        
-        // Важно! Оборачиваем в try-catch для отладки
-        try {
-            // Временно устанавливаем флаг программного обновления,
-            // чтобы другие обработчики не реагировали циклически
-            const wasProgrammaticallyUpdating = this.isProgrammaticallyUpdatingCss;
-            this.isProgrammaticallyUpdatingCss = true;
             
-            // Вызываем оригинальные обработчики напрямую, минуя обертки
-            this.cssUpdatedListeners.forEach(listener => {
-                if (listener.isWrapper && listener.originalHandler) {
-                    listener.originalHandler(latestUpdate);
+            // Если это продолжающееся редактирование, обрабатываем немедленно
+            if (data.isContinuousEdit) {
+                log(`Получено промежуточное обновление CSS от ${data.teamName}`);
+                listener(data);
+                return;
+            }
+            
+            // Обновляем версию
+            this.remoteCssVersion = data.version;
+            
+            // Если текущая команда редактирует CSS или имеет выделение текста,
+            // слияние необходимо применить умно
+            if ((this.isEditingCss || this.isCssSelectionActive) && data.teamName !== this.teamName) {
+                log(`Умное слияние CSS от ${data.teamName} с локальными изменениями`);
+                
+                // Создаем патч между последней синхронизированной версией и пришедшей
+                const patch = createDiffPatch(this.lastSyncedCss, data.css);
+                
+                // Получаем текущее значение CSS
+                const currentCss = this.lastEditedCss || this.lastSyncedCss;
+                
+                // Применяем патч к текущему значению
+                const mergedCss = applyDiffPatch(currentCss, patch);
+                
+                // Обновляем последнюю синхронизированную версию
+                this.lastSyncedCss = data.css;
+                
+                // Создаем новый объект данных с слитым CSS
+                const mergedData = {
+                    ...data,
+                    css: mergedCss,
+                    isMerged: true
+                };
+                
+                // Уведомляем пользователя о слиянии изменений
+                if (mergedCss !== currentCss) {
+                    // Запустим всплывающее уведомление о слиянии
+                    document.dispatchEvent(new CustomEvent('css_merged', {
+                        detail: { teamName: data.teamName }
+                    }));
                 }
-            });
+                
+                // Запускаем обработчик с слитыми данными
+                listener(mergedData);
+                return;
+            }
             
-            // Восстанавливаем состояние
-            this.isProgrammaticallyUpdatingCss = wasProgrammaticallyUpdating;
-        } catch (error) {
-            log(`Ошибка при применении отложенных CSS обновлений: ${error.message}`, 'error');
-        }
+            // Обновляем последнюю синхронизированную версию
+            this.lastSyncedCss = data.css;
+            
+            // Запускаем обработчик в любом другом случае
+            listener(data);
+        };
         
-        // Очищаем отложенные обновления
-        this.pendingCssUpdates = {};
+        // Помечаем обертку для последующей идентификации
+        wrappedListener.isWrapper = true;
+        wrappedListener.originalHandler = listener;
+        
+        this.cssUpdatedListeners.push(wrappedListener);
     }
 }
 

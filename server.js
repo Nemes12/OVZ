@@ -199,25 +199,48 @@ io.on('connection', (socket) => {
   
   // Обновление HTML кода
   socket.on('update_html', (data) => {
-    const { html, teamName } = data;
+    const { html, teamName, version, isContinuousEdit, isFinalEdit } = data;
     
     // Проверяем авторизацию пользователя
     const userData = onlineUsers[socket.id];
     if (!userData || userData.teamName !== teamName) return;
     
-    // Сохраняем HTML в базу данных
+    // Добавляем версию, если ее нет
+    data.version = version || 0;
+    
+    // Если это промежуточное обновление, просто транслируем его, не сохраняя в БД
+    if (isContinuousEdit) {
+      // Отправляем обновление всем, кроме отправителя
+      socket.broadcast.emit('html_updated', { 
+        html, 
+        teamName, 
+        version: data.version,
+        isContinuousEdit: true 
+      });
+      
+      log(`HTML обновление (промежуточное) от команды: ${teamName} (версия ${data.version})`);
+      return;
+    }
+    
+    // Сохраняем HTML в базу данных (для финальных или обычных обновлений)
     updateCode('html', html, teamName)
       .then(() => {
         // Обновляем кэш
         if (codeDataCache) {
           codeDataCache.html = html;
           codeDataCache.timestamp = Date.now();
+          codeDataCache.htmlVersion = version || 0;
         }
         
         // Отправляем обновление всем, кроме отправителя
-        socket.broadcast.emit('html_updated', { html, teamName });
+        socket.broadcast.emit('html_updated', { 
+          html, 
+          teamName, 
+          version: data.version,
+          isFinalEdit: isFinalEdit || false
+        });
         
-        log(`HTML обновлен командой: ${teamName}`);
+        log(`HTML обновлен командой: ${teamName} (версия ${data.version})${isFinalEdit ? ' (финальное)' : ''}`);
       })
       .catch((error) => {
         log(`Ошибка при обновлении HTML: ${error.message}`, 'error');
@@ -226,25 +249,48 @@ io.on('connection', (socket) => {
   
   // Обновление кода CSS
   socket.on('update_css', (data) => {
-    const { css, teamName } = data;
+    const { css, teamName, version, isContinuousEdit, isFinalEdit } = data;
     
     // Проверяем авторизацию пользователя
     const userData = onlineUsers[socket.id];
     if (!userData || userData.teamName !== teamName) return;
     
-    // Сохраняем CSS в базу данных
+    // Добавляем версию, если ее нет
+    data.version = version || 0;
+    
+    // Если это промежуточное обновление, просто транслируем его, не сохраняя в БД
+    if (isContinuousEdit) {
+      // Отправляем обновление всем, кроме отправителя
+      socket.broadcast.emit('css_updated', { 
+        css, 
+        teamName, 
+        version: data.version,
+        isContinuousEdit: true 
+      });
+      
+      log(`CSS обновление (промежуточное) от команды: ${teamName} (версия ${data.version})`);
+      return;
+    }
+    
+    // Сохраняем CSS в базу данных (для финальных или обычных обновлений)
     updateCode('css', css, teamName)
       .then(() => {
         // Обновляем кэш
         if (codeDataCache) {
           codeDataCache.css = css;
           codeDataCache.timestamp = Date.now();
+          codeDataCache.cssVersion = version || 0;
         }
         
         // Отправляем обновление всем, кроме отправителя
-        socket.broadcast.emit('css_updated', { css, teamName });
+        socket.broadcast.emit('css_updated', { 
+          css, 
+          teamName, 
+          version: data.version,
+          isFinalEdit: isFinalEdit || false
+        });
         
-        log(`CSS обновлен командой: ${teamName}`);
+        log(`CSS обновлен командой: ${teamName} (версия ${data.version})${isFinalEdit ? ' (финальное)' : ''}`);
       })
       .catch((error) => {
         log(`Ошибка при обновлении CSS: ${error.message}`, 'error');

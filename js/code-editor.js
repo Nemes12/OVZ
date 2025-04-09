@@ -169,14 +169,8 @@ export class CodeEditor {
             socketService.onHtmlUpdated(data => {
                 console.log('Получено обновление HTML от', data.teamName);
                 
-                // Проверяем, находимся ли мы в режиме редактирования
-                if (this.isEditing && data.teamName !== socketService.getTeamName()) {
-                    console.log('Откладываем обновление HTML, так как редактируем сейчас');
-                    // Отображаем уведомление о том, что обновления отложены
-                    this._showPendingUpdateIndicator(data.teamName);
-                    return;
-                }
-                
+                // Обрабатываем данные, независимо от того, редактируем мы сейчас или нет
+                // В socket-service уже происходит умное слияние изменений
                 this.setValue(data.html);
                 
                 // Обновляем индикатор последнего редактора
@@ -194,14 +188,8 @@ export class CodeEditor {
             socketService.onCssUpdated(data => {
                 console.log('Получено обновление CSS от', data.teamName);
                 
-                // Проверяем, находимся ли мы в режиме редактирования
-                if (this.isEditing && data.teamName !== socketService.getTeamName()) {
-                    console.log('Откладываем обновление CSS, так как редактируем сейчас');
-                    // Отображаем уведомление о том, что обновления отложены
-                    this._showPendingUpdateIndicator(data.teamName);
-                    return;
-                }
-                
+                // Обрабатываем данные, независимо от того, редактируем мы сейчас или нет
+                // В socket-service уже происходит умное слияние изменений
                 this.setValue(data.css);
                 
                 // Обновляем индикатор последнего редактора
@@ -238,6 +226,7 @@ export class CodeEditor {
         let currentPosition = null;
         let currentScrollTop = null;
         let currentVisibleRanges = null;
+        let currentSelection = null;
         
         if (this.editor) {
             // Сохраняем текущую позицию курсора
@@ -248,13 +237,10 @@ export class CodeEditor {
             
             // Сохраняем видимый диапазон для более точного восстановления
             currentVisibleRanges = this.editor.getVisibleRanges();
-        }
-        
-        this.value = value;
-        this.lastSavedValue = value;
-        this.hasUnsavedChanges = false;
-        
-        if (this.editor) {
+            
+            // Сохраняем текущее выделение
+            currentSelection = this.editor.getSelection();
+            
             // Запоминаем, что мы обновляем содержимое программно, а не пользователь
             this.updatingProgrammatically = true;
             
@@ -281,32 +267,71 @@ export class CodeEditor {
                 this.editor.setValue(value);
             }
             
-            // Восстанавливаем позицию курсора и область просмотра, если они были сохранены
-            if (currentPosition) {
-                // Проверяем, что позиция не выходит за пределы документа
-                const lineCount = this.editor.getModel().getLineCount();
-                if (currentPosition.lineNumber <= lineCount) {
-                    // Восстанавливаем позицию курсора
-                    this.editor.setPosition(currentPosition);
+            // Обновляем значение
+            this.value = value;
+            
+            // Сохраняем последнее сохраненное значение для отслеживания несохраненных изменений
+            this.lastSavedValue = value;
+            
+            // Восстанавливаем позицию просмотра и курсора после того, как Monaco обработает изменения
+            // Обертываем в setTimeout, чтобы гарантировать, что Monaco завершил изменения
+            setTimeout(() => {
+                if (this.editor) {
+                    // Восстанавливаем позицию курсора, если она была сохранена
+                    if (currentPosition) {
+                        // Проверяем, что позиция валидна после изменений
+                        const model = this.editor.getModel();
+                        if (model) {
+                            const lineCount = model.getLineCount();
+                            if (currentPosition.lineNumber <= lineCount) {
+                                const lineContent = model.getLineContent(currentPosition.lineNumber);
+                                // Корректируем позицию, если после изменений она вышла за пределы строки
+                                const column = Math.min(currentPosition.column, lineContent.length + 1);
+                                this.editor.setPosition({ lineNumber: currentPosition.lineNumber, column });
+                            }
+                        }
+                    }
                     
-                    // Восстанавливаем прокрутку
+                    // Восстанавливаем выделение, если оно было сохранено
+                    if (currentSelection) {
+                        // Проверяем, что выделение валидно после изменений
+                        const model = this.editor.getModel();
+                        if (model) {
+                            const lineCount = model.getLineCount();
+                            if (currentSelection.startLineNumber <= lineCount && 
+                                currentSelection.endLineNumber <= lineCount) {
+                                const startLine = model.getLineContent(currentSelection.startLineNumber);
+                                const endLine = model.getLineContent(currentSelection.endLineNumber);
+                                // Корректируем выделение
+                                const startColumn = Math.min(currentSelection.startColumn, startLine.length + 1);
+                                const endColumn = Math.min(currentSelection.endColumn, endLine.length + 1);
+                                const selection = {
+                                    startLineNumber: currentSelection.startLineNumber,
+                                    startColumn: startColumn,
+                                    endLineNumber: currentSelection.endLineNumber,
+                                    endColumn: endColumn
+                                };
+                                this.editor.setSelection(selection);
+                            }
+                        }
+                    }
+                    
+                    // Восстанавливаем позицию скролла
                     if (currentScrollTop !== null) {
                         this.editor.setScrollTop(currentScrollTop);
                     }
                     
-                    // Восстанавливаем видимую область, если есть сохраненные данные
-                    if (currentVisibleRanges && currentVisibleRanges.length > 0) {
-                        // Мы берем первый диапазон, так как это основная видимая область
-                        const range = currentVisibleRanges[0];
-                        this.editor.revealRangeInCenter(range);
-                    }
+                    // Сбрасываем флаг программного обновления
+                    this.updatingProgrammatically = false;
                 }
-            }
+            }, 0);
             
-            // Сбрасываем флаг программного обновления
-            setTimeout(() => {
-                this.updatingProgrammatically = false;
-            }, 100);
+            // Принудительно обновляем редактор, чтобы избежать проблем с отображением
+            this.editor.layout();
+        } else {
+            // Если редактор еще не создан, просто сохраняем значение
+            this.value = value;
+            this.lastSavedValue = value;
         }
     }
 
@@ -343,52 +368,21 @@ export class CodeEditor {
         // Добавляем визуальную индикацию несохраненных изменений
         this._updateSavingStatus('editing');
         
+        // Немедленно отправляем изменения на сервер
         if (typeof this.options.onChange === 'function') {
+            // Запускаем событие сохранения для отслеживания
+            document.dispatchEvent(new CustomEvent('editor_saving', { 
+                detail: { type: this.language }
+            }));
+            
+            // Вызываем обработчик изменений с небольшой задержкой, чтобы не вызывать слишком часто
             this.options.onChange(newValue);
+            
+            // После небольшой задержки показываем статус "сохранено"
+            setTimeout(() => {
+                this._updateSavingStatus('saved');
+            }, 300);
         }
-    }
-    
-    /**
-     * Отображает индикатор о том, что есть отложенные обновления
-     * @param {string} teamName - Имя команды, от которой пришло обновление
-     * @private
-     */
-    _showPendingUpdateIndicator(teamName) {
-        const editorContainer = document.getElementById(this.editorId);
-        if (!editorContainer) return;
-        
-        const editorParent = editorContainer.closest('.div-codemirror');
-        if (!editorParent) return;
-        
-        // Удаляем предыдущий индикатор, если он есть
-        const existingIndicator = editorParent.querySelector('.pending-update-indicator');
-        if (existingIndicator) {
-            existingIndicator.remove();
-        }
-        
-        // Создаем индикатор
-        const indicator = document.createElement('div');
-        indicator.className = 'pending-update-indicator';
-        indicator.style.position = 'absolute';
-        indicator.style.bottom = '10px';
-        indicator.style.right = '10px';
-        indicator.style.backgroundColor = 'rgba(255, 200, 50, 0.8)';
-        indicator.style.padding = '8px 12px';
-        indicator.style.borderRadius = '4px';
-        indicator.style.fontSize = '12px';
-        indicator.style.zIndex = '100';
-        indicator.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
-        indicator.textContent = `Есть обновления от ${teamName}. Будут применены через 5 секунд.`;
-        
-        // Добавляем индикатор к контейнеру редактора
-        editorParent.appendChild(indicator);
-        
-        // Удаляем индикатор через 5 секунд
-        setTimeout(() => {
-            if (indicator.parentNode) {
-                indicator.remove();
-            }
-        }, 5000);
     }
     
     /**

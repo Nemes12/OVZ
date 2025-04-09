@@ -18,7 +18,10 @@
     "express": "^5.1.0",
     "path": "^0.12.7",
     "socket.io": "^4.8.1",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "y-monaco": "^0.1.6",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.24"
   },
   "type": "module"
 }

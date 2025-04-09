@@ -153,4 +153,72 @@ export const showNotification = (message, type = 'success', duration = 3000) => 
             }
         }, duration);
     }
+};
+
+/**
+ * Показывает уведомление о слиянии изменений
+ * @param {string} teamName - Имя команды, чьи изменения были объединены
+ * @param {string} language - Язык редактора ('html' или 'css')
+ */
+export const showMergeNotification = (teamName, language) => {
+    const languageName = language.toUpperCase();
+    const message = `Изменения ${languageName} от команды "${teamName}" были объединены с вашими`;
+    
+    // Создаем специальное уведомление с сине-зеленым цветом для слияния
+    // Получаем или создаем контейнер для уведомлений
+    let container = document.querySelector('.notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'notification-container';
+        document.body.appendChild(container);
+    }
+    
+    // Создаем уведомление специального типа
+    const notification = document.createElement('div');
+    notification.className = 'notification merge';
+    
+    // Устанавливаем содержимое
+    notification.innerHTML = `
+        <div class="notification-icon">
+            <i class="fas fa-code-merge"></i>
+        </div>
+        <div class="notification-message">${message}</div>
+        <button class="notification-close">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    // Добавляем в контейнер
+    container.appendChild(notification);
+    
+    // Добавляем обработчик для кнопки закрытия
+    const closeBtn = notification.querySelector('.notification-close');
+    closeBtn.addEventListener('click', () => {
+        notification.classList.remove('show');
+        
+        // Удаляем уведомление после окончания анимации
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    });
+    
+    // Анимируем появление
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+    
+    // Автоматически скрываем через 4 секунды
+    setTimeout(() => {
+        // Проверяем, существует ли еще уведомление в DOM
+        if (notification.parentElement) {
+            notification.classList.remove('show');
+            
+            // Удаляем уведомление после окончания анимации
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 300);
+        }
+    }, 4000);
 }; 

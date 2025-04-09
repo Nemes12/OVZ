@@ -274,17 +274,6 @@ export class AppInitializer {
                 this.lastHtmlCode = htmlCode;
                 this.lastCssCode = cssCode;
                 
-                // Добавляем стили для центрирования специального изображения
-                const specialImageStyles = `
-                    img[src="https://berpt.ru/images/1/%D0%A0%D0%B8%D1%81%D1%83%D0%BD%D0%BE%D0%BA2.png"] {
-                        position: fixed !important;
-                        top: 50% !important;
-                        left: 50% !important;
-                        transform: translate(-50%, -50%) !important;
-                        width: 23% !important;
-                        z-index: 9999 !important;
-                    }
-                `;
                 
                 frameDocument.open();
                 frameDocument.write(`
@@ -294,7 +283,6 @@ export class AppInitializer {
                             <meta charset="utf-8">
                             <style>
                                 ${cssCode}
-                                ${specialImageStyles}
                             </style>
                         </head>
                         <body>${htmlCode}</body>
@@ -376,18 +364,6 @@ export class AppInitializer {
                     try {
                         const frameDocument = fullscreenOutput.contentDocument || fullscreenOutput.contentWindow.document;
                         
-                        // Добавляем стили для центрирования специального изображения
-                        const specialImageStyles = `
-                            img[src="https://berpt.ru/images/1/%D0%A0%D0%B8%D1%81%D1%83%D0%BD%D0%BE%D0%BA2.png"] {
-                                position: fixed !important;
-                                top: 50% !important;
-                                left: 50% !important;
-                                transform: translate(-50%, -50%) !important;
-                                width: 23% !important;
-                                z-index: 9999 !important;
-                            }
-                        `;
-                        
                         frameDocument.open();
                         frameDocument.write(`
                             <!DOCTYPE html>
@@ -396,7 +372,6 @@ export class AppInitializer {
                                     <meta charset="utf-8">
                                     <style>
                                         ${cssCode}
-                                        ${specialImageStyles}
                                     </style>
                                 </head>
                                 <body>${htmlCode}</body>

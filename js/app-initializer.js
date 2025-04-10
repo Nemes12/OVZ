@@ -224,8 +224,28 @@ export class AppInitializer {
     _updateHtml(html) {
         if (!this.socketService || !this.socketService.isAuthorized()) return;
         
+        // Показываем индикатор сохранения
+        const lastEditorSpan = document.getElementById('last-html-editor');
+        if (lastEditorSpan) {
+            lastEditorSpan.textContent = '(Сохранение...)';
+            lastEditorSpan.classList.add('saving');
+        }
+        
+        // Отправляем изменения
         this.socketService.updateHtml(html);
+        
+        // Обновляем превью
         this._updatePreview();
+        
+        // Через некоторое время убираем индикатор сохранения
+        setTimeout(() => {
+            if (lastEditorSpan) {
+                lastEditorSpan.classList.remove('saving');
+                if (lastEditorSpan.textContent === '(Сохранение...)') {
+                    lastEditorSpan.textContent = '';
+                }
+            }
+        }, 1500);
     }
     
     /**
@@ -236,8 +256,28 @@ export class AppInitializer {
     _updateCss(css) {
         if (!this.socketService || !this.socketService.isAuthorized()) return;
         
+        // Показываем индикатор сохранения
+        const lastEditorSpan = document.getElementById('last-css-editor');
+        if (lastEditorSpan) {
+            lastEditorSpan.textContent = '(Сохранение...)';
+            lastEditorSpan.classList.add('saving');
+        }
+        
+        // Отправляем изменения
         this.socketService.updateCss(css);
+        
+        // Обновляем превью
         this._updatePreview();
+        
+        // Через некоторое время убираем индикатор сохранения
+        setTimeout(() => {
+            if (lastEditorSpan) {
+                lastEditorSpan.classList.remove('saving');
+                if (lastEditorSpan.textContent === '(Сохранение...)') {
+                    lastEditorSpan.textContent = '';
+                }
+            }
+        }, 1500);
     }
     
     /**

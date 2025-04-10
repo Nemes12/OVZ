@@ -86,73 +86,157 @@ export const safeJSONParse = (data, defaultValue = null) => {
 };
 
 /**
+ * Сохраняет данные в локальное хранилище как резервную копию
+ * @param {string} type - Тип данных ('html' или 'css')
+ * @param {string} content - Содержимое для сохранения
+ * @param {string} teamName - Имя команды
+ */
+export const saveToLocalBackup = (type, content, teamName) => {
+    try {
+        const timestamp = Date.now();
+        const key = `${teamName}_${type}_backup`;
+        const data = {
+            content,
+            timestamp,
+            type,
+            teamName
+        };
+        localStorage.setItem(key, JSON.stringify(data));
+        console.log(`Резервная копия ${type} сохранена в localStorage`);
+        return true;
+    } catch (error) {
+        console.error(`Ошибка при создании резервной копии ${type}:`, error);
+        return false;
+    }
+};
+
+/**
+ * Восстанавливает данные из локального хранилища
+ * @param {string} type - Тип данных ('html' или 'css')
+ * @param {string} teamName - Имя команды
+ * @return {string|null} - Восстановленное содержимое или null
+ */
+export const restoreFromLocalBackup = (type, teamName) => {
+    try {
+        const key = `${teamName}_${type}_backup`;
+        const storedData = localStorage.getItem(key);
+        
+        if (!storedData) {
+            console.log(`Резервная копия ${type} не найдена`);
+            return null;
+        }
+        
+        const data = safeJSONParse(storedData);
+        if (!data || !data.content) {
+            console.log(`Некорректная резервная копия ${type}`);
+            return null;
+        }
+        
+        console.log(`Восстановлена резервная копия ${type} от ${new Date(data.timestamp).toLocaleString()}`);
+        return data.content;
+    } catch (error) {
+        console.error(`Ошибка при восстановлении из резервной копии ${type}:`, error);
+        return null;
+    }
+};
+
+/**
+ * Функция для повторения операции с задержкой в случае неудачи
+ * @param {Function} operation - Функция, которую нужно выполнить
+ * @param {number} maxRetries - Максимальное количество повторов (по умолчанию 3)
+ * @param {number} delay - Задержка между повторами в мс (по умолчанию 1000)
+ * @param {number} backoff - Коэффициент увеличения задержки (по умолчанию 1.5)
+ * @return {Promise} - Промис с результатом выполнения
+ */
+export const retryOperation = async (operation, maxRetries = 3, delay = 1000, backoff = 1.5) => {
+    let retries = 0;
+    let currentDelay = delay;
+    
+    while (true) {
+        try {
+            return await operation();
+        } catch (error) {
+            retries++;
+            
+            if (retries >= maxRetries) {
+                console.error(`Операция не удалась после ${maxRetries} попыток:`, error);
+                throw error;
+            }
+            
+            console.warn(`Попытка ${retries}/${maxRetries} не удалась, повтор через ${currentDelay}ms:`, error);
+            
+            // Ждем перед следующей попыткой
+            await new Promise(resolve => setTimeout(resolve, currentDelay));
+            
+            // Увеличиваем задержку для следующей попытки
+            currentDelay *= backoff;
+        }
+    }
+};
+
+/**
+ * Гарантирует сохранение данных с использованием локального резервирования
+ * и повторных попыток при неудаче
+ * @param {Function} saveFunction - Функция для сохранения данных
+ * @param {string} type - Тип данных ('html' или 'css')
+ * @param {string} content - Содержимое для сохранения
+ * @param {string} teamName - Имя команды
+ * @param {Object} options - Дополнительные опции
+ * @return {Promise<boolean>} - Промис с результатом сохранения
+ */
+export const ensureSave = async (saveFunction, type, content, teamName, options = {}) => {
+    const { 
+        maxRetries = 3, 
+        showSuccessNotification = true,
+        notificationDuration = 3000
+    } = options;
+    
+    // Сначала сохраняем локальную резервную копию
+    saveToLocalBackup(type, content, teamName);
+    
+    try {
+        // Пытаемся сохранить на сервере с повторными попытками
+        await retryOperation(
+            () => saveFunction(content, teamName),
+            maxRetries
+        );
+        
+        // Успешное сохранение
+        if (showSuccessNotification) {
+            showNotification(`${type.toUpperCase()} успешно сохранен`, 'success', notificationDuration);
+        }
+        
+        return true;
+    } catch (error) {
+        // В случае финальной ошибки показываем уведомление
+        showNotification(
+            `Не удалось сохранить ${type.toUpperCase()}. Изменения сохранены локально и будут отправлены позже.`, 
+            'error', 
+            5000
+        );
+        
+        // Регистрируем необходимость синхронизации 
+        const pendingSyncs = safeJSONParse(localStorage.getItem('pendingSyncs') || '[]', []);
+        pendingSyncs.push({
+            type,
+            teamName,
+            timestamp: Date.now()
+        });
+        localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+        
+        return false;
+    }
+};
+
+/**
  * Показывает уведомление
  * @param {string} message - Текст уведомления
  * @param {string} type - Тип уведомления ('success' или 'error')
  * @param {number} duration - Длительность показа в мс
  */
 export const showNotification = (message, type = 'success', duration = 3000) => {
-    // Получаем или создаем контейнер для уведомлений
-    let container = document.querySelector('.notification-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'notification-container';
-        document.body.appendChild(container);
-    }
-    
-    // Создаем уведомление
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    
-    // Добавляем иконку в зависимости от типа уведомления
-    const iconClass = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
-    
-    // Устанавливаем содержимое
-    notification.innerHTML = `
-        <div class="notification-icon">
-            <i class="fas ${iconClass}"></i>
-        </div>
-        <div class="notification-message">${message}</div>
-        <button class="notification-close">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    // Добавляем в контейнер
-    container.appendChild(notification);
-    
-    // Добавляем обработчик для кнопки закрытия
-    const closeBtn = notification.querySelector('.notification-close');
-    closeBtn.addEventListener('click', () => {
-        notification.classList.remove('show');
-        
-        // Удаляем уведомление после окончания анимации
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    });
-    
-    // Анимируем появление
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-    
-    // Автоматически скрываем через указанное время
-    if (duration > 0) {
-        setTimeout(() => {
-            // Проверяем, существует ли еще уведомление в DOM
-            if (notification.parentElement) {
-                notification.classList.remove('show');
-                
-                // Удаляем уведомление после окончания анимации
-                setTimeout(() => {
-                    if (notification.parentElement) {
-                        notification.remove();
-                    }
-                }, 300);
-            }
-        }, duration);
-    }
+    // Только логируем сообщение, без отображения уведомлений
+    console.log(`[Notification] ${type}: ${message}`);
 };
 
 /**
@@ -161,64 +245,8 @@ export const showNotification = (message, type = 'success', duration = 3000) => 
  * @param {string} language - Язык редактора ('html' или 'css')
  */
 export const showMergeNotification = (teamName, language) => {
+    // Только логируем сообщение, без отображения уведомлений
     const languageName = language.toUpperCase();
     const message = `Изменения ${languageName} от команды "${teamName}" были объединены с вашими`;
-    
-    // Создаем специальное уведомление с сине-зеленым цветом для слияния
-    // Получаем или создаем контейнер для уведомлений
-    let container = document.querySelector('.notification-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'notification-container';
-        document.body.appendChild(container);
-    }
-    
-    // Создаем уведомление специального типа
-    const notification = document.createElement('div');
-    notification.className = 'notification merge';
-    
-    // Устанавливаем содержимое
-    notification.innerHTML = `
-        <div class="notification-icon">
-            <i class="fas fa-code-merge"></i>
-        </div>
-        <div class="notification-message">${message}</div>
-        <button class="notification-close">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    // Добавляем в контейнер
-    container.appendChild(notification);
-    
-    // Добавляем обработчик для кнопки закрытия
-    const closeBtn = notification.querySelector('.notification-close');
-    closeBtn.addEventListener('click', () => {
-        notification.classList.remove('show');
-        
-        // Удаляем уведомление после окончания анимации
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    });
-    
-    // Анимируем появление
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-    
-    // Автоматически скрываем через 4 секунды
-    setTimeout(() => {
-        // Проверяем, существует ли еще уведомление в DOM
-        if (notification.parentElement) {
-            notification.classList.remove('show');
-            
-            // Удаляем уведомление после окончания анимации
-            setTimeout(() => {
-                if (notification.parentElement) {
-                    notification.remove();
-                }
-            }, 300);
-        }
-    }, 4000);
+    console.log(`[Notification] merge: ${message}`);
 }; 

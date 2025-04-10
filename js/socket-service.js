@@ -1,7 +1,16 @@
 // socket-service.js
 // Модуль для работы с Socket.io
 
-import { debounce, safeJSONParse } from './utils.js';
+import { 
+    throttle, 
+    debounce, 
+    showNotification, 
+    saveToLocalBackup, 
+    restoreFromLocalBackup, 
+    retryOperation,
+    ensureSave,
+    safeJSONParse
+} from './utils.js';
 
 /**
  * Оптимизированная функция логирования
@@ -164,7 +173,7 @@ export class SocketService {
         this.editingCssTimer = null;
         this.lastEditedHtml = '';
         this.lastEditedCss = '';
-        this.delayUpdateTime = 5000; // 5 секунд
+        this.delayUpdateTime = 2000; // 2 секунды
         
         // Флаги для отслеживания состояния выделения текста
         this.isHtmlSelectionActive = false;
@@ -175,8 +184,10 @@ export class SocketService {
         this.isProgrammaticallyUpdatingCss = false;
         
         // Сохраняем отложенные обновления от других команд во время редактирования
-        this.pendingHtmlUpdates = {};
-        this.pendingCssUpdates = {};
+        this.pendingHtmlUpdates = []; // Используем массив
+        this.pendingCssUpdates = []; // Используем массив
+        this.bufferStartSyncedHtml = ''; // Состояние HTML на начало локального редактирования
+        this.bufferStartSyncedCss = ''; // Состояние CSS на начало локального редактирования
         
         // Батчинг для обновлений курсора для снижения трафика
         this.pendingCursorUpdate = null;
@@ -206,6 +217,9 @@ export class SocketService {
                 return;
             }
             
+            // Добавляем обработчик событий beforeunload
+            this._setupBeforeUnloadHandler();
+            
             // Используем window.location.origin для автоматического определения URL
             this.socket = io(window.location.origin);
             
@@ -223,6 +237,49 @@ export class SocketService {
     }
     
     /**
+     * Настраивает обработчик события закрытия страницы
+     * @private
+     */
+    _setupBeforeUnloadHandler() {
+        window.addEventListener('beforeunload', (event) => {
+            // Если мы сейчас редактируем HTML или CSS, сохраняем изменения
+            if (this.isEditingHtml && this.lastEditedHtml) {
+                saveToLocalBackup('html', this.lastEditedHtml, this.teamName);
+                
+                // Регистрируем необходимость синхронизации
+                const pendingSyncs = safeJSONParse(localStorage.getItem('pendingSyncs') || '[]', []);
+                pendingSyncs.push({
+                    type: 'html',
+                    teamName: this.teamName,
+                    timestamp: Date.now()
+                });
+                localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+            }
+            
+            if (this.isEditingCss && this.lastEditedCss) {
+                saveToLocalBackup('css', this.lastEditedCss, this.teamName);
+                
+                // Регистрируем необходимость синхронизации
+                const pendingSyncs = safeJSONParse(localStorage.getItem('pendingSyncs') || '[]', []);
+                pendingSyncs.push({
+                    type: 'css',
+                    teamName: this.teamName,
+                    timestamp: Date.now()
+                });
+                localStorage.setItem('pendingSyncs', JSON.stringify(pendingSyncs));
+            }
+            
+            // Если есть несохраненные изменения, запрашиваем подтверждение закрытия
+            if (this.isEditingHtml || this.isEditingCss) {
+                // Стандартное сообщение для несохраненных изменений
+                const message = 'Есть несохраненные изменения. Они будут сохранены локально и синхронизированы при следующем входе.';
+                event.returnValue = message;
+                return message;
+            }
+        });
+    }
+    
+    /**
      * Инициализирует все обработчики событий сокета
      * @private
      */
@@ -231,15 +288,21 @@ export class SocketService {
 
         // Авторизация успешна
         this.socket.on('auth_success', (data) => {
+            // Сохраняем имя команды и данные
             this.teamName = data.teamName;
-            this.teamData = data.teamData;
+            this.teamData = data.teamData || null;
+            
+            // Уведомляем всех подписчиков
+            for (const listener of this.authListeners) {
+                listener(data);
+            }
+            
+            // После успешной авторизации пытаемся синхронизировать локальные изменения
+            setTimeout(() => this._syncLocalBackups(), 1000);
       
       // Сохраняем данные в localStorage
             localStorage.setItem('teamName', this.teamName);
             localStorage.setItem('teamData', JSON.stringify(this.teamData));
-            
-            // Уведомляем всех подписчиков о успешной авторизации
-            this.authListeners.forEach(listener => listener(data));
             
             // Запрашиваем инициализацию кода
             this.socket.emit('initialize_code');
@@ -395,11 +458,12 @@ export class SocketService {
      * @param {string} html - Новый HTML код
      */
     updateHtml(html) {
-        // Если мы уже редактируем, то сначала отменим предыдущий таймер сброса флага
+        // Сначала всегда делаем резервную копию
+        saveToLocalBackup('html', html, this.teamName);
+        
         if (this.editingHtmlTimer) {
             clearTimeout(this.editingHtmlTimer);
-            // Если у нас уже был таймер, значит мы продолжаем редактирование
-            // Отправляем немедленное обновление для других пользователей
+            // Продолжаем редактирование, отправляем промежуточное обновление
             this._socketEmit('update_html', { 
                 html, 
                 teamName: this.teamName,
@@ -407,11 +471,14 @@ export class SocketService {
                 isContinuousEdit: true
             });
         } else {
-            // Устанавливаем флаг редактирования
+            // Начинаем редактирование
             this.isEditingHtml = true;
-            // Увеличиваем версию
             this.localHtmlVersion++;
-            // Отправляем обновление на сервер НЕМЕДЛЕННО
+            // Сохраняем состояние на начало редактирования для последующего слияния
+            this.bufferStartSyncedHtml = this.lastSyncedHtml;
+            // Очищаем буфер на случай, если он не был очищен ранее
+            this.pendingHtmlUpdates = [];
+            // Отправляем начальное обновление
             this._socketEmit('update_html', { 
                 html, 
                 teamName: this.teamName,
@@ -419,24 +486,38 @@ export class SocketService {
             });
         }
         
-        // Сохраняем время последнего редактирования
         this.lastEditedHtml = html;
         
-        // Устанавливаем новый таймер на заданное время
         this.editingHtmlTimer = setTimeout(() => {
             log(`Снят флаг редактирования HTML, прошло ${this.delayUpdateTime}ms`);
+            const finalLocalHtml = this.lastEditedHtml; // Сохраняем финальное локальное состояние
             this.isEditingHtml = false;
             this.editingHtmlTimer = null;
+            this.lastSyncedHtml = finalLocalHtml; // Предварительно обновляем, т.к. это наша последняя версия
             
-            // При снятии флага обновляем последнюю синхронизированную версию
-            this.lastSyncedHtml = html;
-            
-            // Отправляем финальное обновление
-            this._socketEmit('update_html', { 
-                html, 
+            // Отправляем финальное обновление с гарантией доставки
+            const finalData = {
+                html: finalLocalHtml, 
                 teamName: this.teamName,
                 version: this.localHtmlVersion,
                 isFinalEdit: true
+            };
+            
+            retryOperation(
+                () => {
+                    const result = this._socketEmit('update_html', finalData);
+                    if (!result) throw new Error('Не удалось отправить финальное обновление HTML');
+                    return result;
+                },
+                3, 1000
+            ).then(() => {
+                // После успешной отправки применяем накопленные изменения
+                this._applyBufferedUpdates('html');
+            }).catch(error => {
+                log(`Ошибка при финальном обновлении HTML: ${error.message}`, 'error');
+                // Если отправка не удалась, все равно пробуем применить буфер,
+                // т.к. локальные изменения сохранены и будут синхронизированы позже.
+                this._applyBufferedUpdates('html'); 
             });
         }, this.delayUpdateTime);
     }
@@ -446,11 +527,12 @@ export class SocketService {
      * @param {string} css - Новый CSS код
      */
     updateCss(css) {
-        // Если мы уже редактируем, то сначала отменим предыдущий таймер сброса флага
+        // Сначала всегда делаем резервную копию
+        saveToLocalBackup('css', css, this.teamName);
+        
         if (this.editingCssTimer) {
             clearTimeout(this.editingCssTimer);
-            // Если у нас уже был таймер, значит мы продолжаем редактирование
-            // Отправляем немедленное обновление для других пользователей
+            // Продолжаем редактирование, отправляем промежуточное обновление
             this._socketEmit('update_css', { 
                 css, 
                 teamName: this.teamName,
@@ -458,11 +540,14 @@ export class SocketService {
                 isContinuousEdit: true
             });
         } else {
-            // Устанавливаем флаг редактирования
+            // Начинаем редактирование
             this.isEditingCss = true;
-            // Увеличиваем версию
             this.localCssVersion++;
-            // Отправляем обновление на сервер НЕМЕДЛЕННО
+            // Сохраняем состояние на начало редактирования
+            this.bufferStartSyncedCss = this.lastSyncedCss;
+            // Очищаем буфер
+            this.pendingCssUpdates = [];
+            // Отправляем начальное обновление
             this._socketEmit('update_css', { 
                 css, 
                 teamName: this.teamName,
@@ -470,24 +555,37 @@ export class SocketService {
             });
         }
         
-        // Сохраняем время последнего редактирования
         this.lastEditedCss = css;
         
-        // Устанавливаем новый таймер на заданное время
         this.editingCssTimer = setTimeout(() => {
             log(`Снят флаг редактирования CSS, прошло ${this.delayUpdateTime}ms`);
+            const finalLocalCss = this.lastEditedCss; // Сохраняем финальное локальное состояние
             this.isEditingCss = false;
             this.editingCssTimer = null;
-            
-            // При снятии флага обновляем последнюю синхронизированную версию
-            this.lastSyncedCss = css;
-            
-            // Отправляем финальное обновление
-            this._socketEmit('update_css', { 
-                css, 
+            this.lastSyncedCss = finalLocalCss; // Предварительно обновляем
+
+            // Отправляем финальное обновление с гарантией доставки
+            const finalData = {
+                css: finalLocalCss, 
                 teamName: this.teamName,
                 version: this.localCssVersion,
                 isFinalEdit: true
+            };
+            
+            retryOperation(
+                () => {
+                    const result = this._socketEmit('update_css', finalData);
+                    if (!result) throw new Error('Не удалось отправить финальное обновление CSS');
+                    return result;
+                },
+                3, 1000
+            ).then(() => {
+                // После успешной отправки применяем накопленные изменения
+                this._applyBufferedUpdates('css');
+            }).catch(error => {
+                log(`Ошибка при финальном обновлении CSS: ${error.message}`, 'error');
+                 // Если отправка не удалась, все равно пробуем применить буфер
+                this._applyBufferedUpdates('css');
             });
         }, this.delayUpdateTime);
     }
@@ -676,14 +774,34 @@ export class SocketService {
     _socketEmit(event, data) {
         if (!this.socket || !this.isAuthorized()) {
             log(`Не удалось отправить событие ${event}: соединение не установлено или не авторизовано`, 'error');
-            return;
+            
+            // Если это обновление кода, сохраняем его локально
+            if (event === 'update_html' || event === 'update_css') {
+                const type = event === 'update_html' ? 'html' : 'css';
+                const content = type === 'html' ? data.html : data.css;
+                saveToLocalBackup(type, content, this.teamName);
+                showNotification(`Изменения ${type.toUpperCase()} сохранены локально`, 'warning');
+            }
+            
+            return false;
         }
         
         try {
             log(`Отправка события ${event} на сервер`);
             this.socket.emit(event, data);
+            return true;
         } catch (error) {
             log(`Ошибка при отправке события ${event}: ${error.message}`, 'error');
+            
+            // Если это обновление кода, сохраняем его локально
+            if (event === 'update_html' || event === 'update_css') {
+                const type = event === 'update_html' ? 'html' : 'css';
+                const content = type === 'html' ? data.html : data.css;
+                saveToLocalBackup(type, content, this.teamName);
+                showNotification(`Изменения ${type.toUpperCase()} сохранены локально`, 'warning');
+            }
+            
+            return false;
         }
     }
     
@@ -710,76 +828,64 @@ export class SocketService {
      * @param {Function} listener - Функция-обработчик события
      */
     onHtmlUpdated(listener) {
-        // Создаем обертку для слушателя
         const wrappedListener = (data) => {
-            // Добавляем отметку времени к обновлению
             data.timestamp = Date.now();
             data.version = data.version || 0;
             
-            // Если пришла более старая версия, игнорируем
+            // Игнорируем обновления от себя же
+            if (data.teamName === this.teamName) return;
+
+            // Если локальный пользователь активно редактирует - буферизуем
+            if (this.isEditingHtml) {
+                log(`Буферизация обновления HTML от ${data.teamName} (версия ${data.version})`);
+                this.pendingHtmlUpdates.push(data);
+                 // Обновляем удаленную версию, чтобы не пропустить будущие обновления
+                if (data.version > this.remoteHtmlVersion) {
+                    this.remoteHtmlVersion = data.version;
+                }
+                return; // Не применяем и не вызываем listener
+            }
+
+            // Стандартная обработка, если не редактируем локально
             if (data.version < this.remoteHtmlVersion) {
                 log(`Игнорируем устаревшее обновление HTML версии ${data.version}, текущая удаленная версия ${this.remoteHtmlVersion}`);
                 return;
             }
             
-            // Если это продолжающееся редактирование, обрабатываем немедленно
             if (data.isContinuousEdit) {
                 log(`Получено промежуточное обновление HTML от ${data.teamName}`);
+                // Для промежуточных обновлений можно не использовать сложный merge, просто обновить
+                this.lastSyncedHtml = data.html; // Обновляем синхронизированную версию
                 listener(data);
                 return;
             }
             
-            // Обновляем версию
             this.remoteHtmlVersion = data.version;
             
-            // Если текущая команда редактирует HTML или имеет выделение текста,
-            // слияние необходимо применить умно
-            if ((this.isEditingHtml || this.isHtmlSelectionActive) && data.teamName !== this.teamName) {
-                log(`Умное слияние HTML от ${data.teamName} с локальными изменениями`);
-                
-                // Создаем патч между последней синхронизированной версией и пришедшей
+            // Применяем патч (существующая логика)
+            log(`Применение обновления HTML от ${data.teamName} (версия ${data.version})`);
                 const patch = createDiffPatch(this.lastSyncedHtml, data.html);
-                
-                // Получаем текущее значение HTML
-                const currentHtml = this.lastEditedHtml || this.lastSyncedHtml;
-                
-                // Применяем патч к текущему значению
-                const mergedHtml = applyDiffPatch(currentHtml, patch);
-                
-                // Обновляем последнюю синхронизированную версию
-                this.lastSyncedHtml = data.html;
-                
-                // Создаем новый объект данных с слитым HTML
+            const currentLocalHtml = this.lastSyncedHtml; // Используем последнюю синхронизированную
+            const mergedHtml = applyDiffPatch(currentLocalHtml, patch);
+            this.lastSyncedHtml = data.html; // Обновляем синхронизированную версию до версии отправителя
+
                 const mergedData = {
                     ...data,
                     html: mergedHtml,
-                    isMerged: true
+                isMerged: mergedHtml !== currentLocalHtml && mergedHtml !== data.html // Флаг, если было реальное слияние
                 };
                 
-                // Уведомляем пользователя о слиянии изменений
-                if (mergedHtml !== currentHtml) {
-                    // Запустим всплывающее уведомление о слиянии
+            if (mergedData.isMerged) {
                     document.dispatchEvent(new CustomEvent('html_merged', {
                         detail: { teamName: data.teamName }
                     }));
                 }
                 
-                // Запускаем обработчик с слитыми данными
                 listener(mergedData);
-                return;
-            }
-            
-            // Обновляем последнюю синхронизированную версию
-            this.lastSyncedHtml = data.html;
-            
-            // Запускаем обработчик в любом другом случае
-            listener(data);
         };
         
-        // Помечаем обертку для последующей идентификации
         wrappedListener.isWrapper = true;
         wrappedListener.originalHandler = listener;
-        
         this.htmlUpdatedListeners.push(wrappedListener);
     }
     
@@ -788,77 +894,252 @@ export class SocketService {
      * @param {Function} listener - Функция-обработчик события
      */
     onCssUpdated(listener) {
-        // Создаем обертку для слушателя
         const wrappedListener = (data) => {
-            // Добавляем отметку времени к обновлению
             data.timestamp = Date.now();
             data.version = data.version || 0;
             
-            // Если пришла более старая версия, игнорируем
+            // Игнорируем обновления от себя же
+            if (data.teamName === this.teamName) return;
+
+            // Если локальный пользователь активно редактирует - буферизуем
+            if (this.isEditingCss) {
+                log(`Буферизация обновления CSS от ${data.teamName} (версия ${data.version})`);
+                this.pendingCssUpdates.push(data);
+                 // Обновляем удаленную версию, чтобы не пропустить будущие обновления
+                if (data.version > this.remoteCssVersion) {
+                    this.remoteCssVersion = data.version;
+                }
+                return; // Не применяем и не вызываем listener
+            }
+
+            // Стандартная обработка, если не редактируем локально
             if (data.version < this.remoteCssVersion) {
                 log(`Игнорируем устаревшее обновление CSS версии ${data.version}, текущая удаленная версия ${this.remoteCssVersion}`);
                 return;
             }
             
-            // Если это продолжающееся редактирование, обрабатываем немедленно
             if (data.isContinuousEdit) {
                 log(`Получено промежуточное обновление CSS от ${data.teamName}`);
+                this.lastSyncedCss = data.css; // Обновляем синхронизированную версию
                 listener(data);
                 return;
             }
             
-            // Обновляем версию
             this.remoteCssVersion = data.version;
             
-            // Если текущая команда редактирует CSS или имеет выделение текста,
-            // слияние необходимо применить умно
-            if ((this.isEditingCss || this.isCssSelectionActive) && data.teamName !== this.teamName) {
-                log(`Умное слияние CSS от ${data.teamName} с локальными изменениями`);
-                
-                // Создаем патч между последней синхронизированной версией и пришедшей
+            log(`Применение обновления CSS от ${data.teamName} (версия ${data.version})`);
                 const patch = createDiffPatch(this.lastSyncedCss, data.css);
-                
-                // Получаем текущее значение CSS
-                const currentCss = this.lastEditedCss || this.lastSyncedCss;
-                
-                // Применяем патч к текущему значению
-                const mergedCss = applyDiffPatch(currentCss, patch);
-                
-                // Обновляем последнюю синхронизированную версию
-                this.lastSyncedCss = data.css;
-                
-                // Создаем новый объект данных с слитым CSS
+            const currentLocalCss = this.lastSyncedCss;
+            const mergedCss = applyDiffPatch(currentLocalCss, patch);
+            this.lastSyncedCss = data.css; // Обновляем синхронизированную версию до версии отправителя
+            
                 const mergedData = {
                     ...data,
                     css: mergedCss,
-                    isMerged: true
+                isMerged: mergedCss !== currentLocalCss && mergedCss !== data.css
                 };
                 
-                // Уведомляем пользователя о слиянии изменений
-                if (mergedCss !== currentCss) {
-                    // Запустим всплывающее уведомление о слиянии
+            if (mergedData.isMerged) {
                     document.dispatchEvent(new CustomEvent('css_merged', {
                         detail: { teamName: data.teamName }
                     }));
                 }
                 
-                // Запускаем обработчик с слитыми данными
                 listener(mergedData);
+        };
+        
+        wrappedListener.isWrapper = true;
+        wrappedListener.originalHandler = listener;
+        this.cssUpdatedListeners.push(wrappedListener);
+    }
+
+    /**
+     * Синхронизация несохраненных данных из локального хранилища
+     * @private
+     */
+    _syncLocalBackups() {
+        log('Проверка наличия несинхронизированных изменений...');
+        
+        if (!this.isAuthorized()) {
+            log('Пользователь не авторизован, синхронизация невозможна');
                 return;
             }
             
-            // Обновляем последнюю синхронизированную версию
-            this.lastSyncedCss = data.css;
+        // Получаем список необходимых синхронизаций
+        const pendingSyncs = safeJSONParse(localStorage.getItem('pendingSyncs') || '[]', []);
+        
+        if (pendingSyncs.length === 0) {
+            log('Несинхронизированных изменений не найдено');
+            return;
+        }
+        
+        log(`Найдено ${pendingSyncs.length} несинхронизированных изменений`);
+        
+        // Сначала отфильтруем и отсортируем записи для текущей команды
+        const teamSyncs = pendingSyncs
+            .filter(item => item.teamName === this.teamName)
+            .sort((a, b) => a.timestamp - b.timestamp);
+        
+        // Для каждого типа (html, css) берем самую последнюю запись
+        const latestHtmlSync = teamSyncs.filter(item => item.type === 'html').pop();
+        const latestCssSync = teamSyncs.filter(item => item.type === 'css').pop();
+        
+        // Восстанавливаем HTML если есть
+        if (latestHtmlSync) {
+            const htmlContent = restoreFromLocalBackup('html', this.teamName);
+            if (htmlContent) {
+                log('Восстановление несохраненного HTML...');
+                
+                // Отправляем сохраненное содержимое на сервер
+                retryOperation(
+                    () => {
+                        const result = this._socketEmit('update_html', {
+                            html: htmlContent,
+                            teamName: this.teamName,
+                            version: this.localHtmlVersion,
+                            isFinalEdit: true
+                        });
+                        if (!result) throw new Error('Не удалось синхронизировать HTML');
+                        return result;
+                    },
+                    3  // 3 попытки
+                ).then(() => {
+                    showNotification('Несохраненные изменения HTML успешно синхронизированы', 'success');
+                    
+                    // Обновляем локальную версию для избежания конфликтов
+                    this.lastSyncedHtml = htmlContent;
+                }).catch(error => {
+                    log(`Ошибка при синхронизации HTML: ${error.message}`, 'error');
+                    showNotification('Не удалось синхронизировать HTML. Попробуйте обновить страницу.', 'error', 5000);
+                });
+            }
+        }
+        
+        // Восстанавливаем CSS если есть
+        if (latestCssSync) {
+            const cssContent = restoreFromLocalBackup('css', this.teamName);
+            if (cssContent) {
+                log('Восстановление несохраненного CSS...');
+                
+                // Отправляем сохраненное содержимое на сервер
+                retryOperation(
+                    () => {
+                        const result = this._socketEmit('update_css', {
+                            css: cssContent,
+                            teamName: this.teamName,
+                            version: this.localCssVersion,
+                            isFinalEdit: true
+                        });
+                        if (!result) throw new Error('Не удалось синхронизировать CSS');
+                        return result;
+                    },
+                    3  // 3 попытки
+                ).then(() => {
+                    showNotification('Несохраненные изменения CSS успешно синхронизированы', 'success');
+                    
+                    // Обновляем локальную версию для избежания конфликтов
+                    this.lastSyncedCss = cssContent;
+                }).catch(error => {
+                    log(`Ошибка при синхронизации CSS: ${error.message}`, 'error');
+                    showNotification('Не удалось синхронизировать CSS. Попробуйте обновить страницу.', 'error', 5000);
+                });
+            }
+        }
+        
+        // Очищаем список несинхронизированных изменений для текущей команды
+        const updatedPendingSyncs = pendingSyncs.filter(item => item.teamName !== this.teamName);
+        localStorage.setItem('pendingSyncs', JSON.stringify(updatedPendingSyncs));
+    }
+
+    /**
+     * Применяет накопленные в буфере обновления после завершения локального редактирования
+     * @param {'html' | 'css'} type Тип обновлений для применения
+     * @private
+     */
+    _applyBufferedUpdates(type) {
+        const buffer = type === 'html' ? this.pendingHtmlUpdates : this.pendingCssUpdates;
+        if (buffer.length === 0) {
+            log(`Нет буферизированных обновлений для ${type}`);
+            return;
+        }
+
+        log(`Применение ${buffer.length} буферизированных обновлений для ${type}...`);
+
+        let resultingContent = type === 'html' ? this.lastSyncedHtml : this.lastSyncedCss; // Начинаем с последнего сохраненного состояния
+        let currentBufferBase = type === 'html' ? this.bufferStartSyncedHtml : this.bufferStartSyncedCss; // База для первого патча
+        let lastAppliedRemoteVersion = type === 'html' ? this.remoteHtmlVersion : this.remoteCssVersion;
+        let lastAppliedRemoteContent = currentBufferBase; // Отслеживаем последнее примененное удаленное состояние
+        let mergeOccurred = false; // Флаг, что было хотя бы одно слияние
+        let lastAppliedTeamName = 'unknown';
+
+        // Сортируем буфер по версиям на всякий случай
+        buffer.sort((a, b) => (a.version || 0) - (b.version || 0));
+
+        for (const bufferedData of buffer) {
+             // Пропускаем устаревшие или уже примененные версии
+            if ((bufferedData.version || 0) <= lastAppliedRemoteVersion) {
+                continue;
+            }
             
-            // Запускаем обработчик в любом другом случае
-            listener(data);
+            const remoteContent = type === 'html' ? bufferedData.html : bufferedData.css;
+            
+            // Создаем патч от предыдущего удаленного состояния к новому удаленному
+            const patch = createDiffPatch(currentBufferBase, remoteContent);
+            // Применяем патч к текущему результату слияния
+            const previouslyMergedContent = resultingContent;
+            resultingContent = applyDiffPatch(resultingContent, patch);
+            
+            // Обновляем базу для следующего патча
+            currentBufferBase = remoteContent;
+            lastAppliedRemoteVersion = bufferedData.version;
+            lastAppliedRemoteContent = remoteContent;
+            lastAppliedTeamName = bufferedData.teamName;
+            mergeOccurred = mergeOccurred || (resultingContent !== previouslyMergedContent);
+        }
+
+        // Очищаем буфер
+        if (type === 'html') {
+            this.pendingHtmlUpdates = [];
+        } else {
+            this.pendingCssUpdates = [];
+        }
+
+        // Если ничего не изменилось в результате слияния буфера, выходим
+        const finalLocalContent = type === 'html' ? this.lastSyncedHtml : this.lastSyncedCss;
+        if (resultingContent === finalLocalContent) {
+            log(`Применение буфера ${type} не изменило итоговый код.`);
+            // Обновляем lastSynced на случай, если удаленная версия ушла вперед
+            if(type === 'html') this.lastSyncedHtml = lastAppliedRemoteContent;
+            else this.lastSyncedCss = lastAppliedRemoteContent;
+            return;
+        }
+
+        log(`Применение буфера ${type} завершено. Обновление редактора.`);
+        
+        // Обновляем lastSynced до финального состояния
+        if (type === 'html') {
+            this.lastSyncedHtml = lastAppliedRemoteContent; // Важно обновить до последнего примененного удаленного состояния
+        } else {
+            this.lastSyncedCss = lastAppliedRemoteContent;
+        }
+
+        // Уведомляем подписчиков (редактор) о финальном результате
+        const listeners = type === 'html' ? this.htmlUpdatedListeners : this.cssUpdatedListeners;
+        const finalUpdateData = {
+            [type]: resultingContent,
+            teamName: lastAppliedTeamName, // Указываем имя последнего, чьи изменения были в буфере
+            version: lastAppliedRemoteVersion,
+            isBufferedApply: true, // Флаг, что это результат применения буфера
+            isMerged: mergeOccurred
         };
-        
-        // Помечаем обертку для последующей идентификации
-        wrappedListener.isWrapper = true;
-        wrappedListener.originalHandler = listener;
-        
-        this.cssUpdatedListeners.push(wrappedListener);
+
+        if (mergeOccurred) {
+            document.dispatchEvent(new CustomEvent(`${type}_merged`, {
+                detail: { teamName: `нескольких пользователей (буфер)` }
+            }));
+        }
+
+        listeners.forEach(listener => listener(finalUpdateData));
     }
 }
 

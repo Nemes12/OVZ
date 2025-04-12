@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="layout-fix.css">
   <!-- Для исправления ошибки 404 для favicon.ico -->
   <link rel="icon" href="data:,">
-  
+
   <!-- Font Awesome для иконок -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -53,9 +53,7 @@
             <span id="last-html-editor" class="last-editor"></span>
           </div>
           <div class="editor-actions">
-            <button id="html-fullscreen-btn" class="fullscreen-btn" title="Полноэкранный режим" onclick="toggleHtmlFullscreen()">
-              <i class="fas fa-expand"></i>
-            </button>
+            <!-- Кнопка полноэкранного режима удалена -->
           </div>
         </div>
         <div id="html-code"></div>
@@ -68,9 +66,7 @@
             <span id="last-css-editor" class="last-editor"></span>
           </div>
           <div class="editor-actions">
-            <button id="css-fullscreen-btn" class="fullscreen-btn" title="Полноэкранный режим" onclick="toggleCssFullscreen()">
-              <i class="fas fa-expand"></i>
-            </button>
+            <!-- Кнопка полноэкранного режима удалена -->
           </div>
         </div>
         <div id="css-code">
@@ -84,18 +80,7 @@
     </div>
   </div>
 
-  <!-- Предварительный просмотр для полноэкранного режима -->
-  <div class="result-preview" id="result-preview">
-    <iframe id="preview-output"></iframe>
-  </div>
-
-  <!-- Контейнер для отображения результата рядом с полноэкранным редактором -->
-  <div class="result-container" id="fullscreen-result">
-    <div class="result-header">
-      <i class="fa-solid fa-play"></i> Результат
-    </div>
-    <iframe id="fullscreen-output"></iframe>
-  </div>
+  <!-- Контейнеры для полноэкранного режима удалены -->
 
   <!-- Модальное окно входа (изначально показано) -->
   <div id="login-modal" class="login-modal" style="display: flex;">
@@ -125,22 +110,25 @@
 
   <!-- Подключаем Socket.io -->
   <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
-  
+
+  <!-- Подключаем diff-match-patch -->
+  <script src="js/diff-match-patch/diff_match_patch.js"></script>
+
   <!-- Подключаем Monaco Editor -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
   <script>
     // Предотвращаем повторную инициализацию
     if (!window.monacoInitialized) {
       window.monacoInitialized = true;
-      
+
       require.config({
         paths: {
           'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'
         }
       });
-      
+
       window.monaco = null;
-      
+
       // Загружаем только один раз
       require(['vs/editor/editor.main'], function() {
         window.monaco = monaco;
@@ -152,172 +140,10 @@
 
   <!-- Наши модули - импортируем как ES6 модули -->
   <script type="module" src="js/main.js"></script>
-  
-  <!-- Скрипт для обработки полноэкранного режима -->
+
+  <!-- Скрипт для обработки полноэкранного режима удален -->
   <script>
-    function toggleHtmlFullscreen() {
-      console.log('Прямой вызов функции toggleHtmlFullscreen()');
-      const editorContainer = document.getElementById('html-editor-container');
-      const fullscreenResult = document.getElementById('fullscreen-result');
-      
-      if (!editorContainer) {
-        console.error('HTML editor container not found');
-        return;
-      }
-      
-      // Переключение класса fullscreen
-      editorContainer.classList.toggle('fullscreen');
-      const isFullscreen = editorContainer.classList.contains('fullscreen');
-      
-      // Добавляем/удаляем класс для body
-      if (isFullscreen) {
-        document.body.classList.add('fullscreen-active');
-        if (fullscreenResult) {
-          fullscreenResult.style.display = 'block';
-          
-          // Копируем содержимое из основного iframe в iframe полноэкранного режима
-          const mainOutput = document.getElementById('output');
-          const fullscreenOutput = document.getElementById('fullscreen-output');
-          
-          if (mainOutput && fullscreenOutput) {
-            try {
-              // Синхронизируем содержимое iframe
-              const mainOutputContent = mainOutput.contentDocument || mainOutput.contentWindow.document;
-              if (mainOutputContent) {
-                fullscreenOutput.srcdoc = mainOutputContent.documentElement.outerHTML;
-                console.log('Содержимое скопировано в fullscreen-output');
-              }
-            } catch(e) {
-              console.error('Ошибка при копировании содержимого iframe:', e);
-              // Альтернативный метод обновления
-              fullscreenOutput.src = mainOutput.src;
-            }
-          }
-        }
-      } else {
-        document.body.classList.remove('fullscreen-active');
-        if (fullscreenResult) fullscreenResult.style.display = 'none';
-      }
-      
-      // Принудительно обновляем редактор Monaco
-      setTimeout(function() {
-        try {
-          // Обновляем размер Monaco редактора
-          if (window.monaco && window.monaco.editor) {
-            const editors = monaco.editor.getEditors();
-            if (editors && editors.length > 0) {
-              editors.forEach(editor => editor.layout());
-            }
-          }
-        } catch(e) {
-          console.error('Ошибка обновления Monaco редактора:', e);
-        }
-      }, 100);
-    }
-    
-    function toggleCssFullscreen() {
-      console.log('Прямой вызов функции toggleCssFullscreen()');
-      const editorContainer = document.getElementById('css-editor-container');
-      const fullscreenResult = document.getElementById('fullscreen-result');
-      
-      if (!editorContainer) {
-        console.error('CSS editor container not found');
-        return;
-      }
-      
-      // Переключение класса fullscreen
-      editorContainer.classList.toggle('fullscreen');
-      const isFullscreen = editorContainer.classList.contains('fullscreen');
-      
-      // Добавляем/удаляем класс для body
-      if (isFullscreen) {
-        document.body.classList.add('fullscreen-active');
-        if (fullscreenResult) {
-          fullscreenResult.style.display = 'block';
-          
-          // Копируем содержимое из основного iframe в iframe полноэкранного режима
-          const mainOutput = document.getElementById('output');
-          const fullscreenOutput = document.getElementById('fullscreen-output');
-          
-          if (mainOutput && fullscreenOutput) {
-            try {
-              // Синхронизируем содержимое iframe
-              const mainOutputContent = mainOutput.contentDocument || mainOutput.contentWindow.document;
-              if (mainOutputContent) {
-                fullscreenOutput.srcdoc = mainOutputContent.documentElement.outerHTML;
-                console.log('Содержимое скопировано в fullscreen-output');
-              }
-            } catch(e) {
-              console.error('Ошибка при копировании содержимого iframe:', e);
-              // Альтернативный метод обновления
-              fullscreenOutput.src = mainOutput.src;
-            }
-          }
-        }
-      } else {
-        document.body.classList.remove('fullscreen-active');
-        if (fullscreenResult) fullscreenResult.style.display = 'none';
-      }
-      
-      // Принудительно обновляем редактор Monaco
-      setTimeout(function() {
-        try {
-          // Обновляем размер Monaco редактора
-          if (window.monaco && window.monaco.editor) {
-            const editors = monaco.editor.getEditors();
-            if (editors && editors.length > 0) {
-              editors.forEach(editor => editor.layout());
-            }
-          }
-        } catch(e) {
-          console.error('Ошибка обновления Monaco редактора:', e);
-        }
-      }, 100);
-    }
-
-    // Также добавим функцию для синхронизации результатов при обновлении основного iframe
-    function syncIframes() {
-      console.log('Синхронизация iframe');
-      const mainOutput = document.getElementById('output');
-      const fullscreenOutput = document.getElementById('fullscreen-output');
-      
-      if (!mainOutput || !fullscreenOutput) return;
-      
-      // Проверяем, отображается ли fullscreen-output
-      const fullscreenResult = document.getElementById('fullscreen-result');
-      if (fullscreenResult && fullscreenResult.style.display === 'block') {
-        try {
-          const mainOutputContent = mainOutput.contentDocument || mainOutput.contentWindow.document;
-          if (mainOutputContent) {
-            fullscreenOutput.srcdoc = mainOutputContent.documentElement.outerHTML;
-          }
-        } catch(e) {
-          console.error('Ошибка при синхронизации iframe:', e);
-          // Альтернативный метод обновления
-          fullscreenOutput.src = mainOutput.src;
-        }
-      }
-    }
-
-    // Обработчик для отслеживания изменений в основном iframe
-    window.addEventListener('load', function() {
-      const mainOutput = document.getElementById('output');
-      if (mainOutput) {
-        try {
-          // Отслеживаем загрузку содержимого в основной iframe
-          mainOutput.addEventListener('load', syncIframes);
-          
-          // Если iframe уже загружен, привязываем обработчик для отслеживания изменений в его содержимом
-          const mainOutputContent = mainOutput.contentDocument || mainOutput.contentWindow.document;
-          if (mainOutputContent) {
-            mainOutputContent.addEventListener('DOMContentLoaded', syncIframes);
-            mainOutputContent.addEventListener('DOMSubtreeModified', syncIframes);
-          }
-        } catch(e) {
-          console.error('Ошибка при настройке отслеживания iframe:', e);
-        }
-      }
-    });
+    // Функции полноэкранного режима удалены
   </script>
 </body>
 </html>

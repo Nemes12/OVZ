@@ -44,9 +44,7 @@ body {
     min-height: 100vh;
 }
 
-body.fullscreen-active {
-    overflow: hidden;
-}
+/* Стили для полноэкранного режима удалены */
 
 /* Overlay для инициализации кода */
 .init-overlay {
@@ -96,11 +94,11 @@ body.fullscreen-active {
 }
 
 @keyframes dots {
-    0%, 80%, 100% { 
+    0%, 80%, 100% {
         transform: scale(0);
         opacity: 0.3;
     }
-    40% { 
+    40% {
         transform: scale(1);
         opacity: 1;
     }
@@ -261,7 +259,7 @@ body.fullscreen-active {
     width: 100%;
     height: 100%;
     border: none;
-    background: white;
+    background: transparent;
 }
 
 .div-codemirror {
@@ -315,28 +313,7 @@ body.fullscreen-active {
     align-items: center;
 }
 
-.fullscreen-btn {
-    background: none;
-    border: none;
-    color: #ddd;
-    cursor: pointer;
-    font-size: 14px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.fullscreen-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-}
-
-.fullscreen-btn:active {
-    transform: scale(0.95);
-}
+/* Стили кнопки полноэкранного режима удалены */
 
 .div-codemirror > div:nth-child(2) {
     flex: 1;
@@ -345,93 +322,40 @@ body.fullscreen-active {
     width: 100%;
 }
 
-.fullscreen-active .fullscreen-btn i:before {
-    content: "\f066"; /* Иконка свернуть */
+/* Стили для полноэкранного режима удалены */
+
+/* Стили для iframe */
+/* Добавляем стиль для body внутри iframe */
+iframe {
+    color-scheme: dark;
 }
 
-/* Подсвечиваем активный режим полного экрана */
-.fullscreen-btn.active {
-    background-color: rgba(255, 255, 255, 0.2);
+iframe html, iframe body {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
 }
 
-/* Стили для анимированного переключения */
-.div-codemirror.fullscreen,
-#fullscreen-result {
-    transition: all 0.3s ease;
-}
-
-#fullscreen-result {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 50%;
-    height: 100vh;
-    z-index: 1000;
-    background-color: #252525;
-    display: none;
-    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-}
-
-#fullscreen-result .result-header {
-    background-color: #2d2d2d;
-    color: white;
-    padding: 10px;
-    font-size: 14px;
-    font-weight: bold;
-    border-bottom: 1px solid #444;
-    height: 40px;
-    display: flex;
-    align-items: center;
-}
-
-#fullscreen-output {
-    width: 100%;
-    height: calc(100vh - 40px);
-    border: none;
-    background: white;
-    display: block;
-}
-
-/* Проверяем наличие iframe с нужным фоном */
-#fullscreen-result iframe {
-    box-sizing: border-box;
-    width: 100%;
-    height: calc(100vh - 40px);
-    background-color: white;
-    border: none;
-}
+/* Стили для iframe в полноэкранном режиме удалены */
 
 /* Отзывчивый дизайн для мобильных устройств */
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
     }
-    
+
     .left, .right {
         width: 100%;
     }
-    
+
     .right {
         margin-top: 10px;
     }
-    
+
     .div-codemirror {
         height: 300px;
     }
-    
-    .div-codemirror.fullscreen {
-        width: 100%;
-    }
-    
-    #fullscreen-result {
-        display: none !important;
-    }
-    
-    .mobile-device .fullscreen-btn,
-    body.fullscreen-active .fullscreen-btn {
-        display: none;
-    }
+
+    /* Стили для полноэкранного режима на мобильных устройствах удалены */
 }
 
 /* Labels */
@@ -526,7 +450,7 @@ label {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(45deg, 
+    background: linear-gradient(45deg,
         rgba(189, 147, 249, 0.1),
         rgba(255, 121, 198, 0.1),
         rgba(80, 250, 123, 0.1)
@@ -769,24 +693,24 @@ label {
 }
 
 /* Стили для эффекта "печатающейся" анимации в редакторах */
-.CodeMirror .cm-tag, 
+.CodeMirror .cm-tag,
 .CodeMirror .cm-bracket,
-.CodeMirror .cm-attribute, 
+.CodeMirror .cm-attribute,
 .CodeMirror .cm-string,
 .CodeMirror .cm-keyword,
-.CodeMirror .cm-property, 
+.CodeMirror .cm-property,
 .CodeMirror .cm-number,
 .CodeMirror .cm-operator,
 .CodeMirror .cm-punctuation {
     transition: text-shadow 0.2s ease;
 }
 
-.CodeMirror.typing .cm-tag, 
+.CodeMirror.typing .cm-tag,
 .CodeMirror.typing .cm-bracket {
     text-shadow: 0 0 8px rgba(255, 121, 198, 0.8);
 }
 
-.CodeMirror.typing .cm-property, 
+.CodeMirror.typing .cm-property,
 .CodeMirror.typing .cm-attribute {
     text-shadow: 0 0 8px rgba(80, 250, 123, 0.8);
 }
@@ -859,15 +783,15 @@ label {
         padding: 8px;
         font-size: 14px;
     }
-    
+
     .button-content {
         font-size: 2rem;
     }
-    
+
     .button-label {
         font-size: 14px;
     }
-    
+
     .init-button {
         --button-size: 100px;
     }
@@ -879,7 +803,7 @@ label {
         gap: 10px;
         padding: 10px;
     }
-    
+
     .left, .right {
         padding: 5px;
     }
@@ -993,50 +917,7 @@ label {
     margin-top: 8px;
 }
 
-/* Стили для отображения результата рядом с полноэкранным редактором */
-.result-container {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 20%;
-    height: 100%;
-    z-index: 9999;
-    background-color: #fff;
-    border-left: 3px solid #bd93f9;
-    display: none;
-    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease-in-out;
-}
-
-.result-header {
-    background-color: #1e1f29;
-    color: #f8f8f2;
-    padding: 10px 20px;
-    font-weight: bold;
-    font-size: 16px;
-    border-bottom: 2px solid #bd93f9;
-    display: flex;
-    align-items: center;
-}
-
-.result-header i {
-    margin-right: 10px;
-    color: #50fa7b;
-}
-
-.result-container iframe {
-    width: 100%;
-    height: calc(100% - 44px);
-    border: none;
-}
-
-body.fullscreen-active .container {
-    overflow: visible;
-}
-
-body.fullscreen-active .result-container {
-    display: block;
-}
+/* Стили для отображения результата рядом с полноэкранным редактором удалены */
 
 @media (max-width: 768px) {
     /* Мобильный режим */
@@ -1044,45 +925,44 @@ body.fullscreen-active .result-container {
         flex-direction: column;
         height: auto;
     }
-    
+
     .left, .right {
         width: 100%;
         height: auto;
     }
-    
+
     .div-codemirror {
         height: 300px;
     }
-    
+
     .right {
         height: 300px;
     }
-    
+
     .mobile-layout .left {
         display: flex;
         flex-direction: column;
     }
-    
+
     .mobile-device .editor-title {
         font-size: 14px;
     }
-    
+
     .mobile-device .editor-actions button {
         padding: 4px 6px;
     }
-    
+
     /* Улучшения для сенсорных устройств */
-    .mobile-device button, 
-    .mobile-device .fullscreen-btn,
+    .mobile-device button,
     .mobile-device .login-btn {
         min-height: 44px; /* Рекомендуемый минимальный размер для touch target */
     }
-    
+
     .mobile-device input[type="text"] {
         font-size: 16px; /* Предотвращает зум на iOS при фокусе */
         min-height: 44px;
     }
-    
+
     /* Корректировка модального окна входа для мобильных устройств */
     .mobile-device .login-content {
         width: 90%;
@@ -1200,111 +1080,56 @@ body.fullscreen-active .result-container {
 }
 
 /* Новый стиль для улучшения контрастности в редакторе */
-.CodeMirror-selected { 
-    background: rgba(255, 255, 255, 0.15) !important; 
+.CodeMirror-selected {
+    background: rgba(255, 255, 255, 0.15) !important;
 }
 
-.CodeMirror-focused .CodeMirror-selected { 
-    background: rgba(120, 100, 255, 0.25) !important; 
+.CodeMirror-focused .CodeMirror-selected {
+    background: rgba(120, 100, 255, 0.25) !important;
 }
 
-/* Стили для полноэкранного режима редакторов */
-.div-codemirror.fullscreen {
-    position: fixed;
-    width: 50%;
-    left: 0;
-    top: 0;
-    height: 100vh !important;
-    z-index: 1000;
-    background-color: #1e1e1e;
-    padding: 0;
-    border-radius: 0;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-}
-
-body.fullscreen-active {
-    overflow: hidden;
-}
-
-.fullscreen .editor-header {
-    border-radius: 0;
-    border-bottom: 1px solid #444;
-    background-color: #2d2d2d;
-}
-
-.fullscreen .CodeMirror {
-    height: calc(100vh - 40px) !important;
-    max-height: none !important;
-}
-
-#fullscreen-result {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 50%;
-    height: 100vh;
-    z-index: 1000;
-    background-color: #252525;
-    display: none;
-    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-}
-
-#fullscreen-result .result-header {
-    background-color: #2d2d2d;
-    color: white;
-    padding: 10px;
-    font-size: 14px;
-    font-weight: bold;
-    border-bottom: 1px solid #444;
-    height: 40px;
-    display: flex;
-    align-items: center;
-}
-
-#fullscreen-output {
-    width: 100%;
-    height: calc(100vh - 40px);
-    border: none;
-    background: white;
-    display: block;
-}
-
-/* Проверяем наличие iframe с нужным фоном */
-#fullscreen-result iframe {
-    box-sizing: border-box;
-    width: 100%;
-    height: calc(100vh - 40px);
-    background-color: white;
-    border: none;
-}
-
-/* Добавляем стили для улучшения UX в полноэкранном режиме */
-.fullscreen-active .fullscreen-btn i:before {
-    content: "\f066"; /* Иконка свернуть */
-}
-
-/* Убираем скролл в полноэкранном режиме */
-.div-codemirror.fullscreen .CodeMirror-vscrollbar,
-.div-codemirror.fullscreen .CodeMirror-hscrollbar {
-    z-index: 10;
-}
-
-/* Подсвечиваем активный режим полного экрана */
-.fullscreen-btn.active {
-    background-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Стили для анимированного переключения */
-.div-codemirror.fullscreen,
-#fullscreen-result {
-    transition: all 0.3s ease;
-}
+/* Стили для полноэкранного режима редакторов удалены */
 
 /* Стили для редактора Monaco */
 .monaco-editor, .monaco-editor .overflow-guard {
     border-radius: 0;
     height: 100% !important;
     width: 100% !important;
+}
+
+/* Стили для подсветки изменений diff-match-patch */
+@keyframes fadeOut {
+  0% { background-color: rgba(0, 255, 0, 0.4); }
+  50% { background-color: rgba(0, 255, 0, 0.2); }
+  100% { background-color: rgba(0, 255, 0, 0); }
+}
+
+.diff-insert {
+  background-color: rgba(0, 255, 0, 0.2);
+  text-decoration: none;
+  animation: fadeOut 3s forwards;
+  border-radius: 2px;
+}
+
+.diff-delete {
+  background-color: rgba(255, 0, 0, 0.2);
+  text-decoration: line-through;
+  opacity: 0.7;
+  border-radius: 2px;
+}
+
+/* Стили для близких диапазонов */
+.diff-close {
+  border-bottom: 1px dotted rgba(255, 165, 0, 0.6);
+  position: relative;
+}
+
+.diff-close::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: rgba(255, 165, 0, 0.4);
 }

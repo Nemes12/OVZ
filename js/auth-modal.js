@@ -22,11 +22,11 @@ export class AuthModal {
         this.errorMsg = null;
         this.initOverlay = null;
         this.initialized = false;
-        
+
         // Инициализация
         this._initialize();
     }
-    
+
     /**
      * Инициализация модального окна
      * @private
@@ -42,7 +42,7 @@ export class AuthModal {
             this.teamNameInput = document.getElementById('team-name');
             this.errorMsg = document.getElementById('error-notification');
             this.initOverlay = document.getElementById('init-overlay');
-            
+
             if (!this.loginModal) {
                 console.error('Модальное окно входа не найдено (login-modal)');
             }
@@ -58,27 +58,27 @@ export class AuthModal {
             if (!this.teamNameInput) {
                 console.error('Поле ввода имени команды не найдено (team-name)');
             }
-            
+
             // Настраиваем обработчики событий
             this._setupEventListeners();
-            
+
             // Проверяем предыдущую авторизацию
             const hasAuth = this.checkAuth();
-            
+
             // Если пользователь не авторизован, показываем окно входа
             if (!hasAuth) {
                 this.showLoginModal();
             }
-            
+
             // Устанавливаем флаг инициализации
             this.initialized = true;
-            
+
             console.log('Модальное окно авторизации успешно инициализировано');
         } catch (error) {
             console.error('Ошибка при инициализации модального окна авторизации:', error);
         }
     }
-    
+
     /**
      * Проверка предыдущей авторизации
      */
@@ -90,13 +90,13 @@ export class AuthModal {
             console.log('Восстановление сессии для команды:', teamName);
             this.socketService.authorize(teamName);
             this.hideLoginModals();
-            
+
             return true;
         }
-        
+
         return false;
     }
-    
+
     /**
      * Показ модального окна входа
      */
@@ -105,20 +105,20 @@ export class AuthModal {
             this.loginModal.style.display = 'flex';
         }
     }
-    
+
     /**
      * Показать форму входа
      */
     showLoginForm() {
         console.log('Показываем форму входа');
-        
+
         if (this.loginFormModal) {
             console.log('Модальное окно формы входа найдено, устанавливаем display: flex');
             this.loginFormModal.style.display = 'flex';
         } else {
             console.error('Модальное окно формы входа не найдено');
         }
-        
+
         if (this.loginModal) {
             console.log('Скрываем основное модальное окно входа');
             this.loginModal.style.display = 'none';
@@ -126,7 +126,7 @@ export class AuthModal {
             console.error('Основное модальное окно входа не найдено');
         }
     }
-    
+
     /**
      * Скрытие модальных окон входа
      */
@@ -134,12 +134,12 @@ export class AuthModal {
         if (this.loginModal) {
             this.loginModal.style.display = 'none';
         }
-        
+
         if (this.loginFormModal) {
             this.loginFormModal.style.display = 'none';
         }
     }
-    
+
     /**
      * Настройка обработчиков событий
      * @private
@@ -153,7 +153,7 @@ export class AuthModal {
         } else {
             console.error('Кнопка входа не найдена');
         }
-        
+
         // Настраиваем обработчик для кнопки "Назад"
         if (this.backToMainBtn) {
             this.backToMainBtn.addEventListener('click', () => {
@@ -165,13 +165,28 @@ export class AuthModal {
                 }
             });
         }
-        
+
         // Настраиваем обработчик отправки формы
         if (this.loginForm) {
             this.loginForm.addEventListener('submit', (e) => {
                 this._handleLoginSubmit(e);
             });
         }
+
+        // Настраиваем обработчик события ошибки авторизации
+        document.addEventListener('auth_error', (event) => {
+            // Показываем форму входа, если она была скрыта
+            this.showLoginForm();
+
+            // Очищаем поле ввода имени команды
+            if (this.teamNameInput) {
+                this.teamNameInput.value = '';
+                this.teamNameInput.focus();
+            }
+
+            // Показываем сообщение об ошибке
+            this._showError(event.detail.message);
+        });
     }
 
     /**
@@ -181,23 +196,23 @@ export class AuthModal {
      */
     _handleLoginSubmit(event) {
         event.preventDefault();
-        
+
         const form = event.target;
         const teamNameInput = form.querySelector('#team-name');
-        
+
         if (teamNameInput) {
             try {
                 const teamName = teamNameInput.value.trim();
-                
+
                 // Проверяем, что имя команды не пустое
                 if (!teamName) {
                     this._showError('Пожалуйста, введите имя команды');
                     return;
                 }
-                
+
                 // Отправка запроса на авторизацию
                 this.socketService.authorize(teamName);
-                
+
             } catch (error) {
                 console.error('Ошибка при авторизации:', error);
                 this._showError('Произошла ошибка при авторизации');

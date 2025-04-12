@@ -1,5 +1,5 @@
-import { debounce } from './utils.js';
-import { EditorUI } from './editor-ui.js';
+import { CodeEditor } from './code-editor.js';
+// Неиспользуемый импорт findDifferences удален
 
 /**
  * Логирующая функция
@@ -11,7 +11,7 @@ function log(message, level = 'info') {
     const isProd = window.location.hostname !== 'localhost';
     // В продакшене логируем только ошибки
     if (isProd && level !== 'error') return;
-    
+
     switch (level) {
         case 'error':
             console.error(`[CodeEditor] ${message}`);
@@ -39,6 +39,10 @@ class CodeEditorManager {
         this.editorUI = null;
         this.cursorPositionUpdateTimeout = null;
         this.isInitialized = false;
+
+        // Поля для работы с diff-match-patch
+        this.lastHtmlValue = '';
+        this.lastCssValue = '';
     }
 
     /**
@@ -47,52 +51,29 @@ class CodeEditorManager {
      */
     initCodeEditors() {
         try {
-            // Инициализация редактора HTML
-            this.htmlEditor = CodeMirror.fromTextArea(document.getElementById('html-editor'), {
-                mode: 'htmlmixed',
-                theme: 'monokai',
-                lineNumbers: true,
-                autoCloseTags: true,
-                autoCloseBrackets: true,
-                matchBrackets: true,
-                matchTags: { bothTags: true },
-                foldGutter: true,
-                gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
-                extraKeys: { 'Ctrl-Space': 'autocomplete' },
-                hintOptions: { completeSingle: false },
-                indentUnit: 4,
-                tabSize: 4,
-                indentWithTabs: false,
-                lineWrapping: true
+            // Инициализация редактора HTML с использованием Monaco
+            this.htmlEditor = new CodeEditor('html-code', 'html', {
+                onChange: (value) => this._handleHtmlChange(value),
+                onCursorPositionChange: (position) => this._handleCursorPositionChange(position)
             });
 
-            // Инициализация редактора CSS
-            this.cssEditor = CodeMirror.fromTextArea(document.getElementById('css-editor'), {
-                mode: 'css',
-                theme: 'monokai',
-                lineNumbers: true,
-                autoCloseBrackets: true,
-                matchBrackets: true,
-                foldGutter: true,
-                gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
-                extraKeys: { 'Ctrl-Space': 'autocomplete' },
-                hintOptions: { completeSingle: false },
-                indentUnit: 4,
-                tabSize: 4,
-                indentWithTabs: false,
-                lineWrapping: true
+            // Инициализация редактора CSS с использованием Monaco
+            this.cssEditor = new CodeEditor('css-code', 'css', {
+                onChange: (value) => this._handleCssChange(value),
+                onCursorPositionChange: (position) => this._handleCursorPositionChange(position)
             });
 
             // Настройка обработчиков событий
             this._setupEventHandlers();
 
-            // Инициализация UI редактора
-            this.editorUI = new EditorUI(this.htmlEditor, this.cssEditor);
+            // Инициализация UI редактора (если необходимо)
+            // Примечание: для Monaco может потребоваться другой подход к UI
+            // this.editorUI = new EditorUI(this.htmlEditor, this.cssEditor);
 
             // Обновляем код
             this._refreshEditors();
 
-            log('Редакторы кода успешно инициализированы');
+            log('Редакторы кода успешно инициализированы с использованием Monaco');
             return true;
         } catch (error) {
             log(`Ошибка при инициализации редакторов кода: ${error.message}`, 'error');
@@ -105,107 +86,69 @@ class CodeEditorManager {
      * @private
      */
     _setupEventHandlers() {
-        // Обработчик изменений в HTML редакторе с дебаунсом
-        this.htmlEditor.on('change', debounce((editor) => {
-            // Обновляем HTML код на сервере
-            this.socketService.updateHtml(editor.getValue());
-            
-            // Обновляем результат
-            this._updateResult();
-        }, 300));
-        
-        // Обработчик изменений в CSS редакторе с дебаунсом
-        this.cssEditor.on('change', debounce((editor) => {
-            // Обновляем CSS код на сервере
-            this.socketService.updateCss(editor.getValue());
-            
-            // Обновляем результат
-            this._updateResult();
-        }, 300));
-        
         // Обработчик изменения размера окна
         window.addEventListener('resize', () => {
             this._refreshEditors();
         });
-        
-        // Обработчик выделения текста в HTML редакторе
-        this.htmlEditor.on('cursorActivity', (editor) => {
-            // Проверяем, есть ли выделенный текст
-            const isTextSelected = editor.getSelection().length > 0;
-            
-            // Устанавливаем флаг выделения в SocketService
-            this.socketService.setHtmlSelectionActive(isTextSelected);
-        });
-        
-        // Обработчик выделения текста в CSS редакторе
-        this.cssEditor.on('cursorActivity', (editor) => {
-            // Проверяем, есть ли выделенный текст
-            const isTextSelected = editor.getSelection().length > 0;
-            
-            // Устанавливаем флаг выделения в SocketService
-            this.socketService.setCssSelectionActive(isTextSelected);
-        });
-        
-        // Находим кнопки полноэкранного режима
-        const htmlFullscreenBtn = document.getElementById('html-fullscreen-btn');
-        const cssFullscreenBtn = document.getElementById('css-fullscreen-btn');
-        
-        // Проверяем наличие кнопок и добавляем обработчики
-        if (htmlFullscreenBtn) {
-            htmlFullscreenBtn.addEventListener('click', () => {
-                this.editorUI.toggleFullscreen('html');
-            });
-        } else {
-            log('Кнопка полноэкранного режима HTML не найдена', 'warn');
-            
-            // Пробуем добавить обработчик после небольшой задержки
-            setTimeout(() => {
-                const btn = document.getElementById('html-fullscreen-btn');
-                if (btn && !btn._fullscreenHandlerAdded) {
-                    btn.addEventListener('click', () => {
-                        this.editorUI.toggleFullscreen('html');
-                    });
-                    btn._fullscreenHandlerAdded = true;
-                    log('Обработчик полноэкранного режима HTML добавлен с задержкой');
-                }
-            }, 500);
-        }
-        
-        if (cssFullscreenBtn) {
-            cssFullscreenBtn.addEventListener('click', () => {
-                this.editorUI.toggleFullscreen('css');
-            });
-        } else {
-            log('Кнопка полноэкранного режима CSS не найдена', 'warn');
-            
-            // Пробуем добавить обработчик после небольшой задержки
-            setTimeout(() => {
-                const btn = document.getElementById('css-fullscreen-btn');
-                if (btn && !btn._fullscreenHandlerAdded) {
-                    btn.addEventListener('click', () => {
-                        this.editorUI.toggleFullscreen('css');
-                    });
-                    btn._fullscreenHandlerAdded = true;
-                    log('Обработчик полноэкранного режима CSS добавлен с задержкой');
-                }
-            }, 500);
-        }
+
+        // Код для полноэкранного режима удален
+
+        // Обработчики для CSS уже добавлены выше
     }
-    
+
     /**
-     * Обновление результата
+     * Обработка изменений HTML
+     * @param {string} value - Новое значение HTML
      * @private
      */
-    _updateResult() {
+    _handleHtmlChange(value) {
+        // Обновляем HTML код на сервере
+        this.socketService.updateHtml(value);
+
+        // Обновляем результат мгновенно, так как это локальное изменение
+        this._updateResult(true); // true означает, что это локальное изменение
+    }
+
+    /**
+     * Обработка изменений CSS
+     * @param {string} value - Новое значение CSS
+     * @private
+     */
+    _handleCssChange(value) {
+        // Обновляем CSS код на сервере
+        this.socketService.updateCss(value);
+
+        // Обновляем результат мгновенно, так как это локальное изменение
+        this._updateResult(true); // true означает, что это локальное изменение
+    }
+
+    /**
+     * Обработка изменений позиции курсора
+     * @param {Object} position - Позиция курсора
+     * @private
+     */
+    _handleCursorPositionChange(position) {
+        // Отправляем позицию курсора на сервер
+        if (this.socketService && this.socketService.isAuthorized()) {
+            this.socketService.updateCursorPosition(position);
+        }
+    }
+
+    /**
+     * Обновление результата
+     * @param {boolean} isLocalChange - Является ли изменение локальным (от текущего пользователя)
+     * @private
+     */
+    _updateResult(isLocalChange = false) {
         // Получение значений редакторов
         const htmlCode = this.htmlEditor.getValue();
         const cssCode = this.cssEditor.getValue();
-        
+
         // Обновление iframe
         const resultFrame = document.getElementById('result-frame');
         if (resultFrame) {
             const frameDoc = resultFrame.contentDocument || resultFrame.contentWindow.document;
-            
+
             try {
                 frameDoc.open();
                 frameDoc.write(`
@@ -214,7 +157,18 @@ class CodeEditorManager {
                         <head>
                             <meta charset="utf-8">
                             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                            <style>${cssCode}</style>
+                            <style>
+                                /* Базовые стили для темной темы */
+                                body {
+                                    background-color: #1a1a1a;
+                                    color: #e0e0e0;
+                                    font-family: 'poppins', sans-serif;
+                                    margin: 0;
+                                    padding: 10px;
+                                }
+                                /* Пользовательские стили */
+                                ${cssCode}
+                            </style>
                         </head>
                         <body>${htmlCode}</body>
                     </html>
@@ -224,72 +178,95 @@ class CodeEditorManager {
                 log(`Ошибка при обновлении результата: ${error.message}`, 'error');
             }
         }
+
+        // Обновляем основной предпросмотр в app-initializer
+        if (window.appInitializer) {
+            // Для локальных изменений обновляем мгновенно
+            window.appInitializer._updatePreview(true, isLocalChange);
+        }
     }
-    
+
     /**
      * Обновление размеров редакторов
      * @private
      */
     _refreshEditors() {
-        if (this.htmlEditor) {
-            this.htmlEditor.refresh();
+        // Для Monaco редакторов необходимо вызывать layout()
+        if (this.htmlEditor && this.htmlEditor.editor) {
+            this.htmlEditor.editor.layout();
         }
-        
-        if (this.cssEditor) {
-            this.cssEditor.refresh();
+
+        if (this.cssEditor && this.cssEditor.editor) {
+            this.cssEditor.editor.layout();
         }
     }
 
     /**
-     * Установка HTML-кода в редакторе
-     * @param {string} html HTML-код
+     * Установка HTML кода в редактор
+     * @param {string} html HTML код
+     * @param {string} source Источник изменений
      */
-    setHtmlCode(html) {
-        if (this.htmlEditor) {
-            // Сохраняем текущую позицию курсора и прокрутки
-            const cursor = this.htmlEditor.getCursor();
-            const scrollInfo = this.htmlEditor.getScrollInfo();
-            
-            // Устанавливаем новое значение
+    setHtmlCode(html, source = 'server') {
+        if (!this.htmlEditor) {
+            log('HTML редактор не инициализирован', 'warn');
+            return;
+        }
+
+        try {
+            // Если код приходит с сервера, но не отличается от текущего
+            if (source === 'server' && html === this.htmlEditor.getValue()) {
+                return;
+            }
+
+            // Для Monaco редактора просто устанавливаем новое значение
             this.htmlEditor.setValue(html);
-            
-            // Восстанавливаем позицию курсора и прокрутки
-            this.htmlEditor.setCursor(cursor);
-            this.htmlEditor.scrollTo(scrollInfo.left, scrollInfo.top);
-            
-            // Обновляем размер редактора
-            this.htmlEditor.refresh();
-            
-            // Обновляем результат
-            this._updateResult();
+
+            // Обновляем последнее значение
+            this.lastHtmlValue = html;
+
+            // Обновляем результат, если изменения пришли с сервера
+            if (source === 'server') {
+                this._updateResult();
+            }
+        } catch (error) {
+            log(`Ошибка при установке HTML кода: ${error.message}`, 'error');
         }
     }
-    
+
     /**
-     * Установка CSS-кода в редакторе
-     * @param {string} css CSS-код
+     * Установка CSS кода в редактор
+     * @param {string} css CSS код
+     * @param {string} source Источник изменений
      */
-    setCssCode(css) {
-        if (this.cssEditor) {
-            // Сохраняем текущую позицию курсора и прокрутки
-            const cursor = this.cssEditor.getCursor();
-            const scrollInfo = this.cssEditor.getScrollInfo();
-            
-            // Устанавливаем новое значение
+    setCssCode(css, source = 'server') {
+        if (!this.cssEditor) {
+            log('CSS редактор не инициализирован', 'warn');
+            return;
+        }
+
+        try {
+            // Если код приходит с сервера, но не отличается от текущего
+            if (source === 'server' && css === this.cssEditor.getValue()) {
+                return;
+            }
+
+            // Для Monaco редактора просто устанавливаем новое значение
             this.cssEditor.setValue(css);
-            
-            // Восстанавливаем позицию курсора и прокрутки
-            this.cssEditor.setCursor(cursor);
-            this.cssEditor.scrollTo(scrollInfo.left, scrollInfo.top);
-            
-            // Обновляем размер редактора
-            this.cssEditor.refresh();
-            
-            // Обновляем результат
-            this._updateResult();
+
+            // Обновляем последнее значение
+            this.lastCssValue = css;
+
+            // Обновляем результат, если изменения пришли с сервера
+            if (source === 'server') {
+                this._updateResult();
+            }
+        } catch (error) {
+            log(`Ошибка при установке CSS кода: ${error.message}`, 'error');
         }
     }
+
+    // Методы _applySmartUpdate и _highlightChanges удалены как неиспользуемые
 }
 
 // Экспортируем класс
-export default CodeEditorManager; 
+export default CodeEditorManager;

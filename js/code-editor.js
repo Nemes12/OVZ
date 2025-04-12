@@ -12,7 +12,7 @@ export class CodeEditor {
         this.lastSavedValue = '';
         this.isEditing = false;
         this.editingTimer = null;
-        this.editingTimeout = 5000; // 5 секунд
+        this.editingTimeout = 10000; // 10 секунд - увеличено для предотвращения частых прерываний редактирования
         this.options = {
             onChange: () => {},
             onCursorPositionChange: () => {},
@@ -44,7 +44,7 @@ export class CodeEditor {
                 window.removeEventListener('monaco_loaded', monacoLoadedHandler);
             };
             window.addEventListener('monaco_loaded', monacoLoadedHandler);
-            
+
             // Таймаут на случай, если Monaco не загрузится
             setTimeout(() => {
                 if (!window.monaco) {
@@ -61,7 +61,7 @@ export class CodeEditor {
      */
     _createEditor() {
         const editorElement = document.getElementById(this.editorId);
-        
+
         if (!editorElement) {
             console.error(`Элемент с id ${this.editorId} не найден`);
             return;
@@ -72,12 +72,12 @@ export class CodeEditor {
                 console.error('Monaco Editor не загружен, невозможно создать редактор');
                 return;
             }
-            
+
             // Определяем язык для подсветки синтаксиса
             const language = this.language === 'html' ? 'html' : 'css';
-            
+
             console.log(`Создаю редактор ${this.language} с использованием Monaco`);
-            
+
             // Создаем редактор Monaco
             this.editor = monaco.editor.create(editorElement, {
                 value: this.value,
@@ -125,22 +125,22 @@ export class CodeEditor {
 
             // Обработчик изменения позиции курсора
             this.editor.onDidChangeCursorPosition(this.throttledCursorUpdate);
-            
+
             // Устанавливаем флаг инициализации
             this.isInitialized = true;
-            
+
             // Добавляем обработчик событий сокетов для обновления кода
             this._initSocketEvents();
-            
+
             // Инициализируем глобальные события
             this._initEvents();
-            
+
             console.log(`Редактор ${this.language} успешно создан`);
         } catch (error) {
             console.error(`Ошибка при создании редактора ${this.language}:`, error);
         }
     }
-    
+
     /**
      * Инициализация обработчиков событий сокетов
      * @private
@@ -148,31 +148,31 @@ export class CodeEditor {
     _initSocketEvents() {
         // Получаем экземпляр сокет-сервиса
         const socketService = window.socketService;
-        
+
         if (!socketService) {
             console.error('Сокет-сервис не найден');
             return;
         }
-        
+
         // Подписываемся на событие инициализации кода
         socketService.onCodeInitialized(() => {
             console.log(`Получен сигнал инициализации кода для ${this.language}`);
         });
-        
+
         // Подписываемся на событие сброса кода
         socketService.onCodeReset(() => {
             console.log(`Получен сигнал сброса кода для ${this.language}`);
         });
-        
+
         if (this.language === 'html') {
             // Обработчик обновления HTML кода
             socketService.onHtmlUpdated(data => {
                 console.log('Получено обновление HTML от', data.teamName);
-                
+
                 // Обрабатываем данные, независимо от того, редактируем мы сейчас или нет
                 // В socket-service уже происходит умное слияние изменений
                 this.setValue(data.html);
-                
+
                 // Обновляем индикатор последнего редактора
                 const lastEditorSpan = document.getElementById('last-html-editor');
                 if (lastEditorSpan) {
@@ -187,11 +187,11 @@ export class CodeEditor {
             // Обработчик обновления CSS кода
             socketService.onCssUpdated(data => {
                 console.log('Получено обновление CSS от', data.teamName);
-                
+
                 // Обрабатываем данные, независимо от того, редактируем мы сейчас или нет
                 // В socket-service уже происходит умное слияние изменений
                 this.setValue(data.css);
-                
+
                 // Обновляем индикатор последнего редактора
                 const lastEditorSpan = document.getElementById('last-css-editor');
                 if (lastEditorSpan) {
@@ -213,7 +213,7 @@ export class CodeEditor {
         if (!this.editor) return this.value;
         return this.editor.getValue();
     }
-    
+
     /**
      * Установка значения редактора
      * @param {string} value Новое значение редактора
@@ -221,32 +221,32 @@ export class CodeEditor {
     setValue(value) {
         // Если значение не изменилось, ничего не делаем
         if (this.value === value) return;
-        
+
         // Сохраняем текущую позицию просмотра и курсора
         let currentPosition = null;
         let currentScrollTop = null;
         let currentVisibleRanges = null;
         let currentSelection = null;
-        
+
         if (this.editor) {
             // Сохраняем текущую позицию курсора
             currentPosition = this.editor.getPosition();
-            
+
             // Сохраняем текущую позицию скролла
             currentScrollTop = this.editor.getScrollTop();
-            
+
             // Сохраняем видимый диапазон для более точного восстановления
             currentVisibleRanges = this.editor.getVisibleRanges();
-            
+
             // Сохраняем текущее выделение
             currentSelection = this.editor.getSelection();
-            
+
             // Запоминаем, что мы обновляем содержимое программно, а не пользователь
             this.updatingProgrammatically = true;
-            
+
             // Создаем атомарные операции редактирования для оптимизации
             const editOperations = [];
-            
+
             // Используем более производительный метод для больших изменений
             const currentModel = this.editor.getModel();
             if (currentModel) {
@@ -256,76 +256,87 @@ export class CodeEditor {
                     text: value,
                     forceMoveMarkers: true
                 });
-                
+
                 // Применяем изменения как одну операцию
                 currentModel.pushEditOperations([], editOperations, () => null);
-                
+
                 // Сбрасываем историю отмены для экономии памяти
                 currentModel.pushStackElement();
             } else {
                 // Запасной вариант, если модель не доступна
                 this.editor.setValue(value);
             }
-            
+
             // Обновляем значение
             this.value = value;
-            
+
             // Сохраняем последнее сохраненное значение для отслеживания несохраненных изменений
             this.lastSavedValue = value;
-            
+
             // Восстанавливаем позицию просмотра и курсора после того, как Monaco обработает изменения
-            // Обертываем в setTimeout, чтобы гарантировать, что Monaco завершил изменения
+            // Обертываем в setTimeout с задержкой, чтобы гарантировать, что Monaco завершил изменения
             setTimeout(() => {
                 if (this.editor) {
-                    // Восстанавливаем позицию курсора, если она была сохранена
-                    if (currentPosition) {
-                        // Проверяем, что позиция валидна после изменений
-                        const model = this.editor.getModel();
-                        if (model) {
-                            const lineCount = model.getLineCount();
-                            if (currentPosition.lineNumber <= lineCount) {
-                                const lineContent = model.getLineContent(currentPosition.lineNumber);
+                    try {
+                        // Восстанавливаем позицию курсора, если она была сохранена
+                        if (currentPosition) {
+                            // Проверяем, что позиция валидна после изменений
+                            const model = this.editor.getModel();
+                            if (model) {
+                                const lineCount = model.getLineCount();
+                                // Если позиция выходит за пределы документа, используем последнюю строку
+                                const safeLineNumber = Math.min(currentPosition.lineNumber, lineCount);
+                                const lineContent = model.getLineContent(safeLineNumber);
                                 // Корректируем позицию, если после изменений она вышла за пределы строки
                                 const column = Math.min(currentPosition.column, lineContent.length + 1);
-                                this.editor.setPosition({ lineNumber: currentPosition.lineNumber, column });
+                                this.editor.setPosition({ lineNumber: safeLineNumber, column });
                             }
                         }
-                    }
-                    
-                    // Восстанавливаем выделение, если оно было сохранено
-                    if (currentSelection) {
-                        // Проверяем, что выделение валидно после изменений
-                        const model = this.editor.getModel();
-                        if (model) {
-                            const lineCount = model.getLineCount();
-                            if (currentSelection.startLineNumber <= lineCount && 
-                                currentSelection.endLineNumber <= lineCount) {
-                                const startLine = model.getLineContent(currentSelection.startLineNumber);
-                                const endLine = model.getLineContent(currentSelection.endLineNumber);
-                                // Корректируем выделение
+
+                        // Восстанавливаем выделение, если оно было сохранено
+                        if (currentSelection) {
+                            // Проверяем, что выделение валидно после изменений
+                            const model = this.editor.getModel();
+                            if (model) {
+                                const lineCount = model.getLineCount();
+                                // Корректируем начальную и конечную строки выделения
+                                const safeStartLineNumber = Math.min(currentSelection.startLineNumber, lineCount);
+                                const safeEndLineNumber = Math.min(currentSelection.endLineNumber, lineCount);
+
+                                // Получаем содержимое строк с проверкой на существование
+                                const startLine = model.getLineContent(safeStartLineNumber);
+                                const endLine = model.getLineContent(safeEndLineNumber);
+
+                                // Корректируем позиции колонок
                                 const startColumn = Math.min(currentSelection.startColumn, startLine.length + 1);
                                 const endColumn = Math.min(currentSelection.endColumn, endLine.length + 1);
+
+                                // Создаем корректное выделение
                                 const selection = {
-                                    startLineNumber: currentSelection.startLineNumber,
+                                    startLineNumber: safeStartLineNumber,
                                     startColumn: startColumn,
-                                    endLineNumber: currentSelection.endLineNumber,
+                                    endLineNumber: safeEndLineNumber,
                                     endColumn: endColumn
                                 };
+
+                                // Устанавливаем выделение
                                 this.editor.setSelection(selection);
                             }
                         }
+
+                        // Восстанавливаем позицию скролла
+                        if (currentScrollTop !== null) {
+                            this.editor.setScrollTop(currentScrollTop);
+                        }
+                    } catch (error) {
+                        console.error('Ошибка при восстановлении позиции курсора:', error);
+                    } finally {
+                        // Сбрасываем флаг программного обновления
+                        this.updatingProgrammatically = false;
                     }
-                    
-                    // Восстанавливаем позицию скролла
-                    if (currentScrollTop !== null) {
-                        this.editor.setScrollTop(currentScrollTop);
-                    }
-                    
-                    // Сбрасываем флаг программного обновления
-                    this.updatingProgrammatically = false;
                 }
-            }, 0);
-            
+            }, 50); // Увеличиваем задержку для более надежного восстановления позиции
+
             // Принудительно обновляем редактор, чтобы избежать проблем с отображением
             this.editor.layout();
         } else {
@@ -341,22 +352,22 @@ export class CodeEditor {
      */
     _handleContentChange() {
         if (!this.isInitialized) return;
-        
+
         // Игнорируем программные изменения (когда мы сами устанавливаем значение)
         if (this.updatingProgrammatically) return;
-        
+
         const newValue = this.editor.getValue();
         this.value = newValue;
         this.hasUnsavedChanges = true;
-        
+
         // Устанавливаем флаг редактирования
         this.isEditing = true;
-        
+
         // Сбрасываем таймер, если он уже установлен
         if (this.editingTimer) {
             clearTimeout(this.editingTimer);
         }
-        
+
         // Устанавливаем новый таймер на 5 секунд
         this.editingTimer = setTimeout(() => {
             this.isEditing = false;
@@ -364,27 +375,27 @@ export class CodeEditor {
             // Обновляем визуальный статус
             this._updateSavingStatus('saved');
         }, this.editingTimeout);
-        
+
         // Добавляем визуальную индикацию несохраненных изменений
         this._updateSavingStatus('editing');
-        
+
         // Немедленно отправляем изменения на сервер
         if (typeof this.options.onChange === 'function') {
             // Запускаем событие сохранения для отслеживания
-            document.dispatchEvent(new CustomEvent('editor_saving', { 
+            document.dispatchEvent(new CustomEvent('editor_saving', {
                 detail: { type: this.language }
             }));
-            
+
             // Вызываем обработчик изменений с небольшой задержкой, чтобы не вызывать слишком часто
             this.options.onChange(newValue);
-            
+
             // После небольшой задержки показываем статус "сохранено"
             setTimeout(() => {
                 this._updateSavingStatus('saved');
             }, 300);
         }
     }
-    
+
     /**
      * Обновляет визуальный статус сохранения
      * @param {string} status - Статус ('editing', 'saving', 'saved')
@@ -393,32 +404,32 @@ export class CodeEditor {
     _updateSavingStatus(status) {
         // Отключаем отображение статуса редактирования, так как это мешает пользователю
         return;
-        
+
         // Получаем заголовок редактора
         const editorContainer = document.getElementById(this.editorId);
         if (!editorContainer) return;
-        
+
         const editorParent = editorContainer.closest('.div-codemirror');
         if (!editorParent) return;
-        
+
         const statusContainer = editorParent.querySelector('.save-status');
-        
+
         // Если контейнер статуса не существует, создаем его
         if (!statusContainer) {
             const header = editorParent.querySelector('.editor-header');
             if (!header) return;
-            
+
             const statusDiv = document.createElement('div');
             statusDiv.className = 'save-status';
             statusDiv.style.marginLeft = '10px';
             statusDiv.style.fontSize = '12px';
             header.querySelector('.editor-title').appendChild(statusDiv);
-            
+
             // Обновляем ссылку на новый контейнер
             this._updateSavingStatus(status);
             return;
         }
-        
+
         // Обновляем статус
         switch (status) {
             case 'editing':
@@ -432,7 +443,7 @@ export class CodeEditor {
             case 'saved':
                 statusContainer.textContent = '● сохранено';
                 statusContainer.style.color = '#66cc66';
-                
+
                 // Удаляем статус через 3 секунды
                 setTimeout(() => {
                     if (statusContainer.textContent === '● сохранено') {
@@ -449,20 +460,20 @@ export class CodeEditor {
      */
     _handleCursorPositionChange(event) {
         if (!this.isInitialized) return;
-        
+
         const position = event.position;
         const editorElement = document.getElementById(this.editorId);
         const editorBounds = editorElement.getBoundingClientRect();
-        
+
         // Получаем координаты позиции курсора в редакторе
         const coordinatesList = this.editor.getScrolledVisiblePosition(position);
-        
+
         if (!coordinatesList) return;
-        
+
         // Вычисляем абсолютные координаты курсора
         const x = editorBounds.left + coordinatesList.left;
         const y = editorBounds.top + coordinatesList.top;
-        
+
         if (typeof this.options.onCursorPositionChange === 'function') {
             this.options.onCursorPositionChange({ x, y });
         }
@@ -476,12 +487,12 @@ export class CodeEditor {
         // Обработчик события начала сохранения
         document.addEventListener('editor_saving', (event) => {
             const { type } = event.detail;
-            
+
             // Проверяем, относится ли событие к этому редактору
-            if ((type === 'html' && this.language === 'html') || 
+            if ((type === 'html' && this.language === 'html') ||
                 (type === 'css' && this.language === 'css')) {
                 this._updateSavingStatus('saving');
             }
         });
     }
-} 
+}

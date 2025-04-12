@@ -219,14 +219,20 @@ export class EditorUI {
                 this.cssEditor.refresh();
                 log(`Обновлен размер CSS редактора`);
             }
-            
-            // Проверяем, действительно ли применились CSS классы
-            const checkContainer = document.querySelector(`.div-codemirror.${editorType}-editor`);
-            if (checkContainer) {
-                const hasFullscreenClass = checkContainer.classList.contains('fullscreen');
-                log(`Проверка: контейнер ${editorType} ${hasFullscreenClass ? 'имеет' : 'не имеет'} класс fullscreen`);
-            }
-        }, 100);
+
+            // Дополнительно обновляем размер еще раз через некоторое время
+            setTimeout(() => {
+                if (editorType === 'html' && this.htmlEditor) {
+                    this.htmlEditor.refresh();
+                    log(`Обновлен размер HTML редактора`);
+                } else if (editorType === 'css' && this.cssEditor) {
+                    this.cssEditor.refresh();
+                    log(`Обновлен размер CSS редактора`);
+                } else {
+                    log(`Не удалось обновить размер редактора ${editorType}`);
+                }
+            }, 500); // Увеличиваем задержку до 500мс для гарантии обновления DOM
+        }, 200); // Увеличиваем задержку до 200мс для гарантии обновления DOM
     }
     
     /**

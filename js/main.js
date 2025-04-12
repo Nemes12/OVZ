@@ -1,25 +1,28 @@
+import { appInitializer } from './app-initializer.js';
+
 // main.js
 // Основной файл для инициализации приложения
 
-import { appInitializer } from './app-initializer.js';
+// Делаем доступным глобально для доступа из функций полноэкранного режима
+window.appInitializer = appInitializer;
 
 /**
  * Инициализация приложения после загрузки DOM
  */
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Инициализация приложения...');
-    
+
     // Проверка на мобильные устройства
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobile) {
         document.body.classList.add('mobile-device');
     }
-    
+
     // Перехват ошибок
     window.addEventListener('error', (event) => {
         console.error('Необработанная ошибка:', event.error);
     });
-    
+
     // Дополнительная проверка инициализации Monaco
     if (!window.monaco && !window.monacoInitializing) {
         window.monacoInitializing = true;
@@ -30,6 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.dispatchEvent(new Event('monaco_loaded'));
         });
     }
-    
+
     console.log('Приложение инициализировано');
-}); 
+});

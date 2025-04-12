@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Предпросмотр кнопок</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .preview-container {
+            text-align: center;
+            padding: 2rem;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: var(--accent-color, #bd93f9) !important;
+            margin-bottom: 2rem;
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .button {
+            padding: 0.8rem 2rem;
+            font-size: var(--font-size-base, 25px) !important;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--button-color, #9d65f5) !important;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .button:hover {
+            background-color: var(--button-hover-color, #bd93f9) !important;
+        }
+
+        .back-link {
+            margin-top: 2rem;
+            color: var(--accent-color, #bd93f9) !important;
+            text-decoration: none;
+            font-size: var(--font-size-small, 22px) !important;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Дополнительные стили для гарантии применения фона */
+        :root {
+            --bg-color-rgb: 248, 245, 255;
+            --brightness: 1;
+        }
+        html, body, div.container, div.preview-container {
+            background-color: var(--bg-color, #f8f5ff) !important;
+            filter: brightness(var(--brightness, 1)) grayscale(var(--grayscale, 0)) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <h1>Предпросмотр кнопок</h1>
+
+        <div class="button-container">
+            <button class="button">Войти</button>
+            <a href="#" class="back-link">Назад</a>
+        </div>
+    </div>
+</body>
+</html>

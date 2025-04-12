@@ -38,12 +38,14 @@
 }
 
 #html-editor-container {
-    height: calc(50% - 10px);
-    margin-bottom: 20px;
+    height: 50%;
+    margin-bottom: 0;
+    transition: height 0.2s ease;
 }
 
 #css-editor-container {
-    height: calc(50% - 10px);
+    height: 50%;
+    transition: height 0.2s ease;
 }
 
 .div-codemirror {
@@ -75,19 +77,19 @@
         flex-direction: column;
         height: auto;
     }
-    
+
     .left, .right {
         width: 100%;
         height: auto;
     }
-    
+
     #html-editor-container,
     #css-editor-container {
         height: 300px;
     }
-    
+
     .right {
         margin-top: 20px;
         height: 300px;
     }
-} 
+}

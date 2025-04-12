@@ -9,6 +9,7 @@ import { AuthModal } from './auth-modal.js';
 import CodeEditorManager from './code-editor-manager.js';
 import { AutoSaveManager } from './auto-save-manager.js';
 import { SyncStatusIndicator } from './sync-status-indicator.js';
+import { StyleManager } from './style-manager.js';
 
 /**
  * Класс инициализации приложения
@@ -29,6 +30,7 @@ export class AppInitializer {
         this.autoSaveManager = null;
         this.syncStatusIndicator = null;
         this.codeEditorManager = null;
+        this.styleManager = null;
 
         // Создаем троттлированную версию метода обновления предпросмотра
         this.throttledUpdatePreview = throttle(this._performPreviewUpdate.bind(this), 500);
@@ -92,6 +94,9 @@ export class AppInitializer {
 
             // Инициализация индикатора статуса синхронизации
             this.syncStatusIndicator = new SyncStatusIndicator();
+
+            // Инициализация менеджера стилей
+            this.styleManager = new StyleManager(this.socketService);
 
             // Подписываемся на событие принудительного сохранения
             document.addEventListener('force_save', () => {
@@ -338,10 +343,10 @@ export class AppInitializer {
                             <meta charset="utf-8">
                             <meta name="viewport" content="width=device-width, initial-scale=1.0">
                             <style>
-                                /* Базовые стили для темной темы */
+                                /* Базовые стили для светлой темы */
                                 body {
-                                    background-color: #1a1a1a;
-                                    color: #e0e0e0;
+                                    background-color: #ffffff;
+                                    color: #333333;
                                     font-family: 'poppins', sans-serif;
                                     margin: 0;
                                     padding: 10px;

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Предпросмотр заголовка редактора</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color, #f8f5ff) !important;
+        }
+
+        .preview-container {
+            text-align: left;
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 90%;
+        }
+
+        h1 {
+            color: var(--accent-color, #bd93f9) !important;
+            font-size: var(--font-size-large, 30px) !important;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .editor-container {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .editor-header {
+            background-color: var(--accent-color, #bd93f9) !important;
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: var(--font-size-base, 25px) !important;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: var(--editorHeaderHeight, 90px) !important;
+        }
+
+        .editor-title {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .editor-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .editor-button {
+            background-color: var(--button-color, #9d65f5);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: var(--font-size-small, 22px);
+        }
+
+        .editor-button:hover {
+            background-color: var(--button-hover-color, #bd93f9);
+        }
+
+        .editor-content {
+            padding: 1rem;
+            background-color: #f9f9f9;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-style: italic;
+        }
+
+        /* Дополнительные стили для гарантии применения фона */
+        :root {
+            --bg-color-rgb: 248, 245, 255;
+            --brightness: 1;
+        }
+        html, body, div.container, div.preview-container {
+            background-color: var(--bg-color, #f8f5ff) !important;
+            filter: brightness(var(--brightness, 1)) grayscale(var(--grayscale, 0)) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <h1>Предпросмотр заголовка редактора</h1>
+
+        <div class="editor-container">
+            <div class="editor-header">
+                <div class="editor-title">HTML Редактор</div>
+                <div class="editor-actions">
+                    <button class="editor-button">Запустить</button>
+                    <button class="editor-button">Сохранить</button>
+                </div>
+            </div>
+            <div class="editor-content">
+                Содержимое редактора...
+            </div>
+        </div>
+
+        <div class="editor-container">
+            <div class="editor-header">
+                <div class="editor-title">CSS Редактор</div>
+                <div class="editor-actions">
+                    <button class="editor-button">Применить</button>
+                    <button class="editor-button">Сбросить</button>
+                </div>
+            </div>
+            <div class="editor-content">
+                Содержимое редактора...
+            </div>
+        </div>
+    </div>
+</body>
+</html>

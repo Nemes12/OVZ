@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Админ панель</title>
     <style>
+        /* Сброс стилей для админ-панели, чтобы она не зависела от основных стилей */
+        :root {
+            --admin-accent-color: #bd93f9;
+            --admin-button-color: #9d65f5;
+            --admin-button-hover-color: #8a4fe0;
+            --admin-bg-color: #f5f5f5;
+        }
+
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -13,32 +21,146 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            background-color: #f5f5f5;
+            background-color: var(--admin-bg-color);
+            /* Сбрасываем фильтры, чтобы они не влияли на админ-панель */
+            filter: none !important;
         }
-        
+
         .admin-container {
             background-color: white;
             padding: 2rem;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             text-align: center;
-            max-width: 600px;
+            max-width: 800px;
             width: 100%;
         }
-        
+
+        .admin-section {
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .admin-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        h2 {
+            color: var(--admin-accent-color) !important;
+            margin-bottom: 1rem;
+        }
+
+        .style-settings {
+            margin: 1.5rem 0;
+            text-align: left;
+        }
+
+        .style-group {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background-color: #f9f6ff;
+            border-radius: 6px;
+        }
+
+        .style-group h3 {
+            margin-bottom: 1rem;
+            color: #333 !important;
+            font-size: 1.1rem;
+        }
+
+        .style-control {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+
+        .style-control label {
+            flex: 1;
+            margin-right: 1rem;
+        }
+
+        .style-control input, .style-control select {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            appearance: appearance;
+            width: 150px;
+            height: 8px;
+            border-radius: 5px;
+            background: #d3d3d3;
+            outline: none;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--admin-button-color) !important;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--admin-button-color) !important;
+            cursor: pointer;
+        }
+
+        #brightnessValue {
+            display: inline-block;
+            width: 40px;
+            text-align: center;
+            margin: 0 10px;
+        }
+
+        .style-control input[type="color"] {
+            width: 50px;
+            height: 30px;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .preview-button {
+            background-color: var(--admin-button-color) !important;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 1rem;
+            transition: background-color 0.3s;
+        }
+
+        .preview-button:hover {
+            background-color: var(--admin-button-hover-color) !important;
+        }
+
         h1 {
             color: #333;
             margin-bottom: 1.5rem;
         }
-        
+
         .warning {
             color: #e74c3c;
             font-weight: bold;
             margin-bottom: 1.5rem;
         }
-        
+
         .reset-button {
-            background-color: #e74c3c;
+            background-color: #e74c3c !important;
             color: white;
             border: none;
             padding: 12px 20px;
@@ -47,41 +169,175 @@
             font-size: 16px;
             transition: background-color 0.3s;
         }
-        
+
         .reset-button:hover {
-            background-color: #c0392b;
+            background-color: #c0392b !important;
         }
-        
+
         .reset-button:disabled {
             background-color: #ccc;
             cursor: not-allowed;
         }
-        
+
         .result-message {
             margin-top: 1.5rem;
             padding: 10px;
             border-radius: 4px;
             display: none;
         }
-        
+
         .success {
             background-color: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
-        
+
         .error {
             background-color: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-        
+
         .back-link {
             margin-top: 1.5rem;
             color: #3498db;
             text-decoration: none;
         }
-        
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Стили для модального окна предпросмотра */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .preview-modal.show {
+            display: flex;
+        }
+
+        .preview-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            position: relative;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .preview-description {
+            margin-bottom: 1rem;
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            padding: 0.5rem 0;
+        }
+
+        .preview-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--admin-accent-color) !important;
+        }
+
+        .preview-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+            transition: color 0.3s;
+        }
+
+        .preview-close:hover {
+            color: #333;
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+        }
+
+        .preview-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            max-width: 80%;
+            max-height: 90%;
+            overflow: auto;
+            position: relative;
+        }
+
+        .preview-actions {
+            margin-top: 1rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .preview-apply {
+            background-color: var(--admin-button-color) !important;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+
+        .preview-apply:hover {
+            background-color: var(--admin-button-hover-color) !important;
+        }
+
+        .preview-cancel {
+            background-color: #f5f5f5 !important;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+
+        .preview-cancel:hover {
+            background-color: #e5e5e5 !important;
+        }
+
+        .back-link {
+            color: var(--admin-button-color) !important;
+            text-decoration: none;
+            font-size: 1rem;
+            margin-top: 1.5rem;
+            display: inline-block;
+        }
+
         .back-link:hover {
             text-decoration: underline;
         }
@@ -90,25 +346,101 @@
 <body>
     <div class="admin-container">
         <h1>Админ панель</h1>
-        
-        <p class="warning">Внимание! Сброс данных приведет к восстановлению начальных значений HTML и CSS.</p>
-        
-        <button id="resetButton" class="reset-button">Сбросить данные</button>
-        
+
+        <div class="admin-section">
+            <h2>Управление кодом</h2>
+            <button id="resetButton" class="reset-button">Сбросить код</button>
+        </div>
+
+        <div class="admin-section">
+            <h2>Настройка стилей</h2>
+            <p>Здесь вы можете настроить внешний вид редактора и интерфейса.</p>
+            <div id="styleSettings" class="style-settings">
+                <div class="style-group">
+                    <h3>Цвета интерфейса</h3>
+                    <div class="style-control">
+                        <label for="accentColor">Основной цвет акцента:</label>
+                        <input type="color" id="accentColor" value="#bd93f9">
+                        <button class="preview-button" data-style="accentColor">Предпросмотр</button>
+                    </div>
+
+                    <div class="style-control">
+                        <label for="bgColor">Цвет фона:</label>
+                        <input type="color" id="bgColor" value="#f8f5ff">
+                        <button class="preview-button" data-style="bgColor">Предпросмотр</button>
+                    </div>
+                    <div class="style-control">
+                        <label for="brightness">Яркость интерфейса:</label>
+                        <input type="range" id="brightness" min="80" max="120" value="100" class="slider">
+                        <span id="brightnessValue">100%</span>
+                        <button class="preview-button" data-style="brightness">Предпросмотр</button>
+                    </div>
+                    <div class="style-control">
+                        <label for="grayscale">Черно-белый режим:</label>
+                        <input type="range" id="grayscale" min="0" max="100" value="0" class="slider">
+                        <span id="grayscaleValue">0%</span>
+                        <button class="preview-button" data-style="grayscale">Предпросмотр</button>
+                    </div>
+                </div>
+
+                <div class="style-group">
+                    <h3>Шрифты</h3>
+                    <div class="style-control">
+                        <label for="fontSizeLarge">Размер Заголовка(HTML CSS Output) (px):</label>
+                        <input type="number" id="fontSizeLarge" value="30" min="14" max="50">
+                        <button class="preview-button" data-style="fontSizeLarge">Предпросмотр</button>
+                    </div>
+                </div>
+
+                <div class="style-group">
+                    <h3>Редактор кода</h3>
+                    <div class="style-control">
+                        <label for="editorFontSize">Размер шрифта в редакторе (px):</label>
+                        <input type="number" id="editorFontSize" value="24" min="12" max="40">
+                        <button class="preview-button" data-style="editorFontSize">Предпросмотр</button>
+                    </div>
+                    <div class="style-control">
+                        <label for="editorHeaderHeight">Высота заголовка редактора (px):</label>
+                        <input type="number" id="editorHeaderHeight" value="90" min="40" max="120">
+                        <button class="preview-button" data-style="editorHeaderHeight">Предпросмотр</button>
+                    </div>
+                </div>
+            </div>
+            <button id="resetStylesButton" class="reset-button">Сбросить стили</button>
+        </div>
+
         <div id="resultMessage" class="result-message"></div>
-        
+
         <a href="/" class="back-link">Вернуться на главную</a>
     </div>
-    
+
+    <!-- Модальное окно предпросмотра -->
+    <div id="previewModal" class="preview-modal">
+        <div class="preview-content">
+            <div class="preview-header">
+                <div class="preview-title">Предпросмотр изменений</div>
+                <button id="previewClose" class="preview-close">&times;</button>
+            </div>
+            <div class="preview-description">
+                Ниже показан предпросмотр внешнего вида редактора с примененными изменениями.
+            </div>
+            <iframe id="previewIframe" class="preview-iframe" src="/"></iframe>
+            <div class="preview-actions">
+                <button id="previewCancel" class="preview-cancel">Отменить</button>
+                <button id="previewApply" class="preview-apply">Применить</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.getElementById('resetButton').addEventListener('click', async function() {
             const button = this;
             const resultMessage = document.getElementById('resultMessage');
-            
+
             // Блокируем кнопку во время запроса
             button.disabled = true;
             button.textContent = 'Выполняется сброс...';
-            
+
             try {
                 const response = await fetch('/api/reset', {
                     method: 'POST',
@@ -116,15 +448,15 @@
                         'Content-Type': 'application/json'
                     }
                 });
-                
+
                 const data = await response.json();
-                
+
                 resultMessage.style.display = 'block';
-                
+
                 if (data.success) {
                     resultMessage.className = 'result-message success';
                     resultMessage.textContent = data.message;
-                    
+
                     // Разблокируем кнопку через 3 секунды
                     setTimeout(() => {
                         button.disabled = false;
@@ -133,7 +465,7 @@
                 } else {
                     resultMessage.className = 'result-message error';
                     resultMessage.textContent = data.message || 'Произошла ошибка при сбросе данных';
-                    
+
                     // Разблокируем кнопку
                     button.disabled = false;
                     button.textContent = 'Сбросить данные';
@@ -142,12 +474,62 @@
                 resultMessage.style.display = 'block';
                 resultMessage.className = 'result-message error';
                 resultMessage.textContent = 'Ошибка соединения с сервером';
-                
+
                 // Разблокируем кнопку
                 button.disabled = false;
                 button.textContent = 'Сбросить данные';
             }
         });
     </script>
+
+    <!-- Подключаем Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Автоматическая авторизация для админа -->
+    <script>
+        // Функция для логирования
+        function log(message, level = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        // Инициализация сокета и автоматическая авторизация
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                // Инициализируем сокет
+                const socket = io(window.location.origin);
+
+                // Обработка подключения
+                socket.on('connect', function() {
+                    log('Соединение с сервером установлено');
+
+                    // Автоматическая авторизация как system
+                    socket.emit('auth', { teamName: 'system' });
+                    log('Отправлен запрос на авторизацию как system');
+                });
+
+                // Обработка успешной авторизации
+                socket.on('auth_success', function(data) {
+                    log(`Успешная авторизация как: ${data.teamName}`);
+                    localStorage.setItem('teamName', data.teamName);
+                });
+
+                // Обработка ошибки авторизации
+                socket.on('auth_error', function(data) {
+                    log(`Ошибка авторизации: ${data.message}`, 'error');
+                });
+
+                // Обработка отключения
+                socket.on('disconnect', function() {
+                    log('Соединение с сервером потеряно', 'warn');
+                });
+            } catch (error) {
+                log(`Ошибка при инициализации сокета: ${error.message}`, 'error');
+            }
+        });
+    </script>
+
+    <!-- Подключаем менеджер стилей -->
+    <script src="js/admin-style-manager.js"></script>
 </body>
-</html> 
+</html>

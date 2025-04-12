@@ -13,6 +13,10 @@ export const DIFF_DELETE = -1;
 export const DIFF_INSERT = 1;
 export const DIFF_EQUAL = 0;
 
+// Вот пример как это можно реализовать:
+dmp.Diff_Timeout = 2; // Увеличиваем тайм-аут для больших текстов
+dmp.Diff_EditCost = 6; // Повышаем стоимость редактирования для получения более компактных различий
+
 /**
  * Находит различия между двумя строками текста
  * @param {string} oldText - Исходный текст

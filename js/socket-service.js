@@ -131,6 +131,7 @@ export class SocketService {
         this.userDisconnectedListeners = [];
         this.codeInitializedListeners = [];
         this.codeResetListeners = [];
+        this.stylesUpdatedListeners = [];
 
         // Флаги для отслеживания состояния редактирования текущей командой
         this.isEditingHtml = false;
@@ -322,6 +323,12 @@ export class SocketService {
         this.socket.on('code_reset', () => {
             log('Код сброшен к начальным значениям');
             this.codeResetListeners.forEach(listener => listener());
+        });
+
+        // Обновление стилей
+        this.socket.on('styles_updated', (data) => {
+            log('Стили обновлены');
+            this.stylesUpdatedListeners.forEach(listener => listener(data));
         });
 
         // Обработка переподключения
@@ -945,6 +952,14 @@ export class SocketService {
         wrappedListener.isWrapper = true;
         wrappedListener.originalHandler = listener;
         this.cssUpdatedListeners.push(wrappedListener);
+    }
+
+    /**
+     * Добавляет обработчик для события обновления стилей
+     * @param {Function} listener - Функция-обработчик события
+     */
+    onStylesUpdated(listener) {
+        this.stylesUpdatedListeners.push(listener);
     }
 
     /**

@@ -91,6 +91,11 @@ class CodeEditorManager {
             this._refreshEditors();
         });
 
+        // Обработчик события изменения размера редакторов
+        window.addEventListener('editor-resize', () => {
+            this._refreshEditors();
+        });
+
         // Код для полноэкранного режима удален
 
         // Обработчики для CSS уже добавлены выше
@@ -158,10 +163,10 @@ class CodeEditorManager {
                             <meta charset="utf-8">
                             <meta name="viewport" content="width=device-width, initial-scale=1.0">
                             <style>
-                                /* Базовые стили для темной темы */
+                                /* Базовые стили для светлой темы */
                                 body {
-                                    background-color: #1a1a1a;
-                                    color: #e0e0e0;
+                                    background-color: #ffffff;
+                                    color: #333333;
                                     font-family: 'poppins', sans-serif;
                                     margin: 0;
                                     padding: 10px;

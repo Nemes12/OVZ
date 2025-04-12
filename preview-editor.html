@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Предпросмотр редактора кода</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color, #f8f5ff) !important;
+        }
+
+        .preview-container {
+            text-align: left;
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 90%;
+        }
+
+        h1 {
+            color: var(--accent-color, #bd93f9) !important;
+            font-size: var(--font-size-large, 30px) !important;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .editor-container {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .editor-header {
+            background-color: var(--accent-color, #bd93f9) !important;
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: var(--font-size-base, 25px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-content {
+            padding: 1rem;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: var(--editorFontSize, 24px) !important;
+            line-height: 1.5;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        /* Дополнительное правило для гарантии применения размера шрифта */
+        .editor-content, .editor-content * {
+            font-size: var(--editorFontSize, 24px) !important;
+        }
+
+        .line-number {
+            color: #858585;
+            margin-right: 1rem;
+            user-select: none;
+        }
+
+        .keyword {
+            color: #569cd6;
+        }
+
+        .string {
+            color: #ce9178;
+        }
+
+        .comment {
+            color: #6a9955;
+        }
+
+        .function {
+            color: #dcdcaa;
+        }
+
+        .tag {
+            color: #569cd6;
+        }
+
+        .attribute {
+            color: #9cdcfe;
+        }
+        /* Дополнительные стили для гарантии применения фона */
+        :root {
+            --bg-color-rgb: 248, 245, 255;
+            --brightness: 1;
+        }
+        html, body, div.container, div.preview-container {
+            background-color: var(--bg-color, #f8f5ff) !important;
+            filter: brightness(var(--brightness, 1)) grayscale(var(--grayscale, 0)) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <h1>Предпросмотр редактора кода</h1>
+
+        <div class="editor-container">
+            <div class="editor-header">
+                <span>HTML</span>
+                <span>Редактор кода</span>
+            </div>
+            <div class="editor-content">
+<span class="line-number">1</span><span class="tag">&lt;!DOCTYPE</span> <span class="attribute">html</span><span class="tag">&gt;</span>
+<span class="line-number">2</span><span class="tag">&lt;html</span> <span class="attribute">lang</span>=<span class="string">"ru"</span><span class="tag">&gt;</span>
+<span class="line-number">3</span><span class="tag">&lt;head&gt;</span>
+<span class="line-number">4</span>    <span class="tag">&lt;meta</span> <span class="attribute">charset</span>=<span class="string">"UTF-8"</span><span class="tag">&gt;</span>
+<span class="line-number">5</span>    <span class="tag">&lt;title&gt;</span>Мой сайт<span class="tag">&lt;/title&gt;</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

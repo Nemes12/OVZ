@@ -13,7 +13,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
-import { getCodeData, updateCode, resetToInitialState } from './db.js';
+import { getCodeData, updateCode, resetToInitialState, getStyles, saveStyles, resetStyles } from './db.js';
 
 // Функция для логирования с временными метками
 function log(message, level = 'info') {
@@ -49,7 +49,11 @@ const io = new Server(server, {
   maxHttpBufferSize: 1e6 // 1MB
 });
 
+// Получаем порт из переменных окружения или используем 3000 по умолчанию
+const PORT = process.env.PORT || 3000;
+
 app.use(cors());
+app.use(express.json()); // Добавляем мидлвар для обработки JSON
 app.use(express.static(path.join(__dirname), {
   // Добавляем кэширование для статических файлов
   etag: true,
@@ -65,6 +69,23 @@ app.get('/', (req, res) => {
 // Скрытый маршрут для сброса кодов к начальным значениям
 app.get('/RelOAD', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// Маршруты для страниц предпросмотра
+app.get('/preview-buttons.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'preview-buttons.html'));
+});
+
+app.get('/preview-text.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'preview-text.html'));
+});
+
+app.get('/preview-editor.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'preview-editor.html'));
+});
+
+app.get('/preview-header.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'preview-header.html'));
 });
 
 // API для сброса кодов
@@ -101,6 +122,66 @@ app.post('/api/reset', async (req, res) => {
   } catch (error) {
     log(`Ошибка при сбросе данных: ${error.message}`, 'error');
     res.status(500).json({ success: false, message: 'Ошибка при сбросе данных' });
+  }
+});
+
+// API для получения стилей
+app.get('/api/styles', (req, res) => {
+  try {
+    const styles = getStyles();
+    res.json({ success: true, styles });
+  } catch (error) {
+    log(`Ошибка при получении стилей: ${error.message}`, 'error');
+    res.status(500).json({ success: false, message: 'Ошибка при получении стилей' });
+  }
+});
+
+// API для сохранения стилей
+app.post('/api/save-styles', (req, res) => {
+  try {
+    const styles = req.body;
+
+    if (!styles || Object.keys(styles).length === 0) {
+      return res.status(400).json({ success: false, message: 'Неверный формат данных' });
+    }
+
+    const success = saveStyles(styles);
+
+    if (!success) {
+      return res.status(500).json({ success: false, message: 'Ошибка при сохранении стилей' });
+    }
+
+    // Уведомляем всех клиентов об обновлении стилей
+    io.emit('styles_updated', { styles });
+
+    log('Стили успешно сохранены');
+    res.json({ success: true, message: 'Стили успешно сохранены' });
+  } catch (error) {
+    log(`Ошибка при сохранении стилей: ${error.message}`, 'error');
+    res.status(500).json({ success: false, message: 'Ошибка при сохранении стилей' });
+  }
+});
+
+// API для сброса стилей
+app.post('/api/reset-styles', (req, res) => {
+  try {
+    const success = resetStyles();
+
+    if (!success) {
+      return res.status(500).json({ success: false, message: 'Ошибка при сбросе стилей' });
+    }
+
+    // Получаем стили по умолчанию
+    const styles = getStyles();
+
+    // Уведомляем всех клиентов об обновлении стилей
+    io.emit('styles_updated', { styles });
+
+    log('Стили успешно сброшены к начальным значениям');
+    res.json({ success: true, message: 'Стили успешно сброшены' });
+  } catch (error) {
+    log(`Ошибка при сбросе стилей: ${error.message}`, 'error');
+    res.status(500).json({ success: false, message: 'Ошибка при сбросе стилей' });
   }
 });
 
@@ -346,7 +427,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+// Запускаем сервер
 server.listen(PORT, () => {
   log(`Сервер запущен на порту ${PORT}`);
 

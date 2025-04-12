@@ -1,4 +1,5 @@
 import { appInitializer } from './app-initializer.js';
+import { EditorResizer } from './editor-resizer.js';
 
 // main.js
 // Основной файл для инициализации приложения
@@ -33,6 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
             window.dispatchEvent(new Event('monaco_loaded'));
         });
     }
+
+    // Инициализация разделителя редакторов
+    const editorResizer = new EditorResizer();
 
     console.log('Приложение инициализировано');
 });

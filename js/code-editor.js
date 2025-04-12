@@ -56,6 +56,47 @@ export class CodeEditor {
     }
 
     /**
+     * Создание пользовательской темы для Monaco Editor
+     * @private
+     */
+    _createCustomTheme() {
+        if (!window.monaco) return;
+
+        // Регистрируем пользовательскую тему с фиолетовыми акцентами
+        monaco.editor.defineTheme('purpleTheme', {
+            base: 'vs', // Используем светлую тему как основу
+            inherit: true, // Наследуем базовые стили
+            rules: [
+                // HTML
+                { token: 'tag', foreground: '9d65f5' }, // Теги
+                { token: 'tag.id', foreground: 'bd93f9' }, // ID в тегах
+                { token: 'tag.class', foreground: 'bd93f9' }, // Классы в тегах
+                { token: 'attribute.name', foreground: 'bd93f9' }, // Имена атрибутов
+                { token: 'attribute.value', foreground: 'ff79c6' }, // Значения атрибутов
+                { token: 'delimiter', foreground: '9d65f5' }, // Разделители
+
+                // CSS
+                { token: 'keyword', foreground: '9d65f5' }, // Ключевые слова
+                { token: 'property', foreground: 'bd93f9' }, // Свойства CSS
+                { token: 'number', foreground: 'ff79c6' }, // Числа
+                { token: 'string', foreground: 'ff79c6' }, // Строки
+                { token: 'selector', foreground: '9d65f5' }, // Селекторы
+                { token: 'operator', foreground: '9d65f5' }, // Операторы
+                { token: 'comment', foreground: '6272a4' }, // Комментарии
+            ],
+            colors: {
+                'editor.foreground': '#333333',
+                'editor.background': '#ffffff',
+                'editorCursor.foreground': '#9d65f5',
+                'editor.lineHighlightBackground': '#f8f5ff',
+                'editorLineNumber.foreground': '#bd93f9',
+                'editor.selectionBackground': '#e8e0ff',
+                'editor.inactiveSelectionBackground': '#f8f5ff',
+            }
+        });
+    }
+
+    /**
      * Создание экземпляра редактора кода
      * @private
      */
@@ -73,6 +114,9 @@ export class CodeEditor {
                 return;
             }
 
+            // Создаем пользовательскую тему
+            this._createCustomTheme();
+
             // Определяем язык для подсветки синтаксиса
             const language = this.language === 'html' ? 'html' : 'css';
 
@@ -82,14 +126,16 @@ export class CodeEditor {
             this.editor = monaco.editor.create(editorElement, {
                 value: this.value,
                 language: language,
-                theme: 'vs-dark',
+                theme: 'purpleTheme',
                 automaticLayout: true,
                 minimap: {
                     enabled: false // Отключаем миникарту для экономии ресурсов
                 },
                 lineNumbers: 'on',
                 scrollBeyondLastLine: false,
-                fontSize: 14,
+                fontSize: 26,
+                fontFamily: "'Fira Code', monospace",
+                fontLigatures: true,
                 wordWrap: 'on',
                 tabSize: 2,
                 folding: true,
@@ -422,7 +468,7 @@ export class CodeEditor {
             const statusDiv = document.createElement('div');
             statusDiv.className = 'save-status';
             statusDiv.style.marginLeft = '10px';
-            statusDiv.style.fontSize = '12px';
+            statusDiv.style.fontSize = '18px';
             header.querySelector('.editor-title').appendChild(statusDiv);
 
             // Обновляем ссылку на новый контейнер
@@ -434,15 +480,15 @@ export class CodeEditor {
         switch (status) {
             case 'editing':
                 statusContainer.textContent = '● редактируется';
-                statusContainer.style.color = '#ffaa00';
+                statusContainer.style.color = '#ff89c6';
                 break;
             case 'saving':
                 statusContainer.textContent = '● сохраняется...';
-                statusContainer.style.color = '#66aaff';
+                statusContainer.style.color = '#bd93f9';
                 break;
             case 'saved':
                 statusContainer.textContent = '● сохранено';
-                statusContainer.style.color = '#66cc66';
+                statusContainer.style.color = '#9d65f5';
 
                 // Удаляем статус через 3 секунды
                 setTimeout(() => {

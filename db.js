@@ -5,11 +5,18 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Проверяем существование директории data
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+  console.log(`Создана директория для базы данных: ${dataDir}`);
+}
+
 // Функция для логирования с временными метками
 function log(message, level = 'info') {
   const timestamp = new Date().toISOString();
   const formattedMessage = `[${timestamp}] [DB] [${level.toUpperCase()}] ${message}`;
-  
+
   switch(level) {
     case 'error':
       console.error(formattedMessage);
@@ -25,75 +32,88 @@ function log(message, level = 'info') {
 // Сохраняем начальные значения для кода и время инициализации
 const APP_START_TIME = Date.now();
 
+// Начальные значения для стилей
+const DEFAULT_STYLES = {
+  accentColor: '#bd93f9',
+  bgColor: '#f8f5ff',
+  brightness: '100',
+  grayscale: '0',
+  fontSizeBase: '25',
+  fontSizeSmall: '22',
+  fontSizeLarge: '30',
+  editorFontSize: '24',
+  editorHeaderHeight: '90'
+};
+
 // Начальные значения для кода (не меняем, просто оптимизируем доступ)
 const INITIAL_HTML = `<!DOCTYPE html>
 <html lang="ru">
-<head>     
-  <meta charset="UTF-8">     
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">     
-  <link rel="stylesheet" href="style.css">   
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
   <title>Изображения</title>
  </head>
- <body>     
-  <div class="gallery">  
-   <!-- Рабоча зона команды 1-->                
-   <img class="img1" src="" alt="Изображение 1">          
-    
-   <!-- Рабоча зона команды 2-->              
-   <img class="img2" src="" alt="Изображение 2">         
-    
-   <!-- Рабоча зона команды 3-->            
-    <img class="img3" src="" alt="Изображение 3">            
-     
-   <!-- Рабоча зона команды 4-->            
-    <img class="img4" src="" alt="Изображение 4">    
-   
-   </div> 
-   </body> 
+ <body>
+  <div class="gallery">
+   <!-- Рабоча зона команды 1-->
+   <img class="img1" src="" alt="Изображение 1">
+
+   <!-- Рабоча зона команды 2-->
+   <img class="img2" src="" alt="Изображение 2">
+
+   <!-- Рабоча зона команды 3-->
+    <img class="img3" src="" alt="Изображение 3">
+
+   <!-- Рабоча зона команды 4-->
+    <img class="img4" src="" alt="Изображение 4">
+
+   </div>
+   </body>
   </html>`;
 
-const INITIAL_CSS = `body {     
- display: flex;    
- justify-content: center;     
- align-items: center;     
- height: 100vh;     
- margin: 0;     
- background-color: #f0f0f0; 
-}  
+const INITIAL_CSS = `body {
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ height: 100vh;
+ margin: 0;
+ background-color: #f0f0f0;
+}
 
-.gallery {    
- display: grid;     
- grid-template-columns: repeat(2, 1fr);     /* 2 колонки */     
- gap: 0px;     /* Расстояние между изображениями */ 
-}  
+.gallery {
+ display: grid;
+ grid-template-columns: repeat(2, 1fr);     /* 2 колонки */
+ gap: 0px;     /* Расстояние между изображениями */
+}
 
-.gallery img {     
- width: 100%;     /* Ширина изображения 100% от ячейки */     
- height: auto;     /* Автоматическая высота для сохранения пропорций */ 
-} 
+.gallery img {
+ width: 100%;     /* Ширина изображения 100% от ячейки */
+ height: auto;     /* Автоматическая высота для сохранения пропорций */
+}
 
 /*Рабоча зона команды 1*/
-.img1 {    
- max-width: 100%;     /* Адаптивная ширина */    
- height: auto;     /* Автоматическая высота для сохранения пропорций */ 
-}  
+.img1 {
+ max-width: 100%;     /* Адаптивная ширина */
+ height: auto;     /* Автоматическая высота для сохранения пропорций */
+}
 
 /*Рабоча зона команды 2*/
-.img2 {    
- max-width: 100%;     /* Адаптивная ширина */    
- height: auto;     /* Автоматическая высота для сохранения пропорций */ 
-}  
+.img2 {
+ max-width: 100%;     /* Адаптивная ширина */
+ height: auto;     /* Автоматическая высота для сохранения пропорций */
+}
 
 /*Рабоча зона команды 3*/
-.img3 {    
- max-width: 100%;     /* Адаптивная ширина */    
- height: auto;     /* Автоматическая высота для сохранения пропорций */ 
-}  
+.img3 {
+ max-width: 100%;     /* Адаптивная ширина */
+ height: auto;     /* Автоматическая высота для сохранения пропорций */
+}
 
 /*Рабоча зона команды 4*/
-.img4 {    
- max-width: 100%;     /* Адаптивная ширина */    
- height: auto;     /* Автоматическая высота для сохранения пропорций */ 
+.img4 {
+ max-width: 100%;     /* Адаптивная ширина */
+ height: auto;     /* Автоматическая высота для сохранения пропорций */
 }`;
 
 // Подготовленные запросы для оптимизации
@@ -101,18 +121,14 @@ let selectHtmlStmt;
 let selectCssStmt;
 let updateCodeStmt;
 let insertHistoryStmt;
+let selectStylesStmt;
+let updateStylesStmt;
 
 // Создание и инициализация базы данных
 function initDB() {
-  // Проверяем существование директории data
-  const dataDir = path.join(__dirname, 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-
   // База данных будет в папке data
   const dbPath = path.join(dataDir, 'code.db');
-  
+
   // Оптимизируем настройки базы данных
   const db = new Database(dbPath, {
     // Режим журналирования WAL для лучшей производительности
@@ -144,11 +160,21 @@ function initDB() {
       created_at INTEGER NOT NULL
     )
   `);
-  
+
   // Создаем индекс для ускорения поиска по истории
   db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_code_history_type 
+    CREATE INDEX IF NOT EXISTS idx_code_history_type
     ON code_history(type, created_at DESC)
+  `);
+
+  // Создаем таблицу для стилей
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS styles (
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
   `);
 
   // Проверяем, существуют ли записи для HTML и CSS
@@ -167,12 +193,31 @@ function initDB() {
       2, 'css', INITIAL_CSS, APP_START_TIME
     );
   }
-  
+
+  // Проверяем, существуют ли записи для стилей
+  const stylesCount = db.prepare('SELECT COUNT(*) as count FROM styles').get().count;
+
+  // Если записей нет, добавляем начальные значения
+  if (stylesCount === 0) {
+    const insertStyleStmt = db.prepare('INSERT INTO styles (name, value, updated_at) VALUES (?, ?, ?)');
+
+    // Добавляем каждый стиль по отдельности
+    Object.entries(DEFAULT_STYLES).forEach(([name, value], index) => {
+      insertStyleStmt.run(name, value, APP_START_TIME);
+    });
+
+    log('Стили успешно инициализированы');
+  }
+
   // Подготавливаем запросы для оптимизации
   selectHtmlStmt = db.prepare("SELECT content FROM code_data WHERE type = 'html'");
   selectCssStmt = db.prepare("SELECT content FROM code_data WHERE type = 'css'");
   updateCodeStmt = db.prepare('UPDATE code_data SET content = ?, updated_at = ? WHERE type = ?');
   insertHistoryStmt = db.prepare('INSERT INTO code_history (type, content, user, created_at) VALUES (?, ?, ?, ?)');
+
+  // Подготавливаем запросы для работы со стилями
+  selectStylesStmt = db.prepare('SELECT name, value FROM styles');
+  updateStylesStmt = db.prepare('UPDATE styles SET value = ?, updated_at = ? WHERE name = ?');
 
   return db;
 }
@@ -197,11 +242,11 @@ export function getCodeData() {
         css: INITIAL_CSS
       };
     }
-    
+
     // Используем подготовленные запросы для получения данных
     const htmlResult = selectHtmlStmt.get();
     const cssResult = selectCssStmt.get();
-    
+
     const htmlContent = htmlResult?.content || INITIAL_HTML;
     const cssContent = cssResult?.content || INITIAL_CSS;
 
@@ -234,27 +279,27 @@ export function updateCode(type, content, userName) {
 function processUpdateQueue() {
   // Если уже обрабатываем или очередь пуста - выходим
   if (isUpdating || updateQueue.length === 0) return;
-  
+
   isUpdating = true;
-  
+
   // Получаем следующую задачу из очереди
   const { type, content, userName, resolve, reject } = updateQueue.shift();
-  
+
   try {
     const timestamp = Date.now();
-    
+
     // Начинаем транзакцию для атомарности операции
     const transaction = db.transaction(() => {
       // Обновляем текущее состояние кода
       updateCodeStmt.run(content, timestamp, type);
-      
+
       // Добавляем запись в историю изменений
       insertHistoryStmt.run(type, content, userName, timestamp);
     });
-    
+
     // Выполняем транзакцию
     transaction();
-    
+
     // Задача выполнена успешно
     resolve(true);
   } catch (error) {
@@ -263,7 +308,7 @@ function processUpdateQueue() {
   } finally {
     // Снимаем флаг и продолжаем обработку очереди
     isUpdating = false;
-    
+
     // Если есть ещё задачи, продолжаем их обработку
     if (updateQueue.length > 0) {
       processUpdateQueue();
@@ -271,24 +316,93 @@ function processUpdateQueue() {
   }
 }
 
+/**
+ * Получение всех стилей
+ * @returns {Object} Объект со стилями
+ */
+export function getStyles() {
+  try {
+    // Проверяем, что запросы были инициализированы
+    if (!selectStylesStmt) {
+      log('Подготовленные запросы для стилей не инициализированы', 'error');
+      return DEFAULT_STYLES;
+    }
+
+    // Получаем все стили из базы данных
+    const styles = {};
+    const rows = selectStylesStmt.all();
+
+    // Формируем объект со стилями
+    rows.forEach(row => {
+      styles[row.name] = row.value;
+    });
+
+    return styles;
+  } catch (error) {
+    log(`Ошибка при получении стилей: ${error.message}`, 'error');
+    return DEFAULT_STYLES;
+  }
+}
+
+/**
+ * Сохранение стилей
+ * @param {Object} styles Объект со стилями
+ * @returns {boolean} Успешность операции
+ */
+export function saveStyles(styles) {
+  try {
+    const timestamp = Date.now();
+
+    // Используем транзакцию для атомарности
+    const transaction = db.transaction(() => {
+      // Обновляем каждый стиль
+      Object.entries(styles).forEach(([name, value]) => {
+        updateStylesStmt.run(value, timestamp, name);
+      });
+    });
+
+    // Выполняем транзакцию
+    transaction();
+
+    log('Стили успешно сохранены');
+    return true;
+  } catch (error) {
+    log(`Ошибка при сохранении стилей: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+/**
+ * Сброс стилей к начальным значениям
+ * @returns {boolean} Успешность операции
+ */
+export function resetStyles() {
+  try {
+    return saveStyles(DEFAULT_STYLES);
+  } catch (error) {
+    log(`Ошибка при сбросе стилей: ${error.message}`, 'error');
+    return false;
+  }
+}
+
 export function resetToInitialState() {
   try {
     const timestamp = Date.now();
-    
+
     // Используем транзакцию для атомарности
     const transaction = db.transaction(() => {
       // Сбрасываем HTML и CSS к начальным значениям
       updateCodeStmt.run(INITIAL_HTML, timestamp, 'html');
       updateCodeStmt.run(INITIAL_CSS, timestamp, 'css');
-      
+
       // Добавляем запись в историю об этом сбросе
       insertHistoryStmt.run('html', INITIAL_HTML, 'admin_reset', timestamp);
       insertHistoryStmt.run('css', INITIAL_CSS, 'admin_reset', timestamp);
     });
-    
+
     // Выполняем транзакцию
     transaction();
-    
+
     log('Данные успешно сброшены к начальному состоянию');
     return true;
   } catch (error) {
@@ -301,11 +415,11 @@ export function getCodeHistory(limit = 10) {
   try {
     // Подготавливаем запрос для получения истории
     const stmt = db.prepare(`
-      SELECT * FROM code_history 
-      ORDER BY created_at DESC 
+      SELECT * FROM code_history
+      ORDER BY created_at DESC
       LIMIT ?
     `);
-    
+
     return stmt.all(limit);
   } catch (error) {
     log(`Ошибка при получении истории изменений: ${error.message}`, 'error');
@@ -318,4 +432,4 @@ export default {
   updateCode,
   resetToInitialState,
   getCodeHistory
-}; 
+};

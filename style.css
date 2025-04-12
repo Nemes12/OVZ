@@ -7,41 +7,49 @@
 }
 
 :root {
-    --bg-color: #1a1a1a;
-    --text-color: #fff;
-    --editor-bg: #2d2d2d;
-    --border-color: #444;
+    --bg-color: #f8f5ff;
+    --bg-color-rgb: 248, 245, 255;
+    --text-color: #333333;
+    --editor-bg: #ffffff;
+    --border-color: #d8c8ff;
     --error-color: #ff4444;
-    --success-color: #00C851;
+    --success-color: #7800c8;
     --transition-speed: 0.3s;
-    --button-color: #bd93f9;
+    --button-color: #9d65f5;
+    --button-hover-color: #bd93f9;
+    --accent-color: #bd93f9;
     --button-size: 120px;
-    --font-size-base: 16px;
-    --font-size-small: 14px;
-    --font-size-large: 18px;
+    --font-size-base: 25px;
+    --font-size-small: 22px;
+    --font-size-large: 30px;
+    --grayscale: 0;
+    --brightness: 1;
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg-color: #1a1a1a;
-        --text-color: #e0e0e0;
-        --editor-bg: #2d2d2d;
-        --border-color: #444;
-    }
-}
+/* Светлая тема по умолчанию */
 
 html {
     font-size: 100%;
 }
 
+
+
 body {
-    background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+    border: 2px solid #00000036;
+    background-color: var(--bg-color);
     color: var(--text-color);
     overflow: hidden;
     transition: background-color var(--transition-speed), color var(--transition-speed);
     font-size: var(--font-size-base);
     line-height: 1.5;
     min-height: 100vh;
+    filter: brightness(var(--brightness, 1)) grayscale(var(--grayscale, 0)) !important;
+}
+
+/* Стиль для предотвращения выделения текста во время перетаскивания */
+body.resizing {
+    user-select: none;
+    cursor: row-resize;
 }
 
 /* Стили для полноэкранного режима удалены */
@@ -53,7 +61,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, rgba(23, 23, 23, 0.97), rgba(17, 17, 17, 0.98));
+    background-color: rgba(var(--bg-color-rgb, 248, 245, 255), 0.97);
     backdrop-filter: blur(10px);
     display: flex;
     justify-content: center;
@@ -106,10 +114,10 @@ body {
 
 /* Обновленные стили для статуса инициализации */
 .init-status {
-    color: #fff;
-    font-size: 20px;
+    color: #333333;
+    font-size: var(--font-size-large);
     font-weight: 500;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     letter-spacing: 0.5px;
     line-height: 1.4;
     margin-top: 20px;
@@ -124,12 +132,12 @@ body {
 }
 
 .online-users {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    background: linear-gradient(145deg, rgba(189, 147, 249, 0.2), rgba(157, 101, 245, 0.1));
     padding: 10px 20px;
     border-radius: 30px;
     font-size: 16px;
     font-weight: 500;
-    color: #fff;
+    color: #333333;
     letter-spacing: 0.5px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -252,7 +260,7 @@ body {
 .right .border {
     flex: 1;
     display: flex;
-    height: calc(100% - 30px);
+    height: calc(100% - 60px);
 }
 
 .right iframe {
@@ -269,7 +277,7 @@ body {
     margin-bottom: 8px;
     border-radius: 8px;
     overflow: hidden;
-    background-color: #1e1e1e;
+    background-color: var(--editor-bg);
     transition: all 0.3s ease;
     position: relative;
     height: calc(50% - 4px);
@@ -279,15 +287,16 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #2d2d2d;
+    background-color: var(--accent-color);
     color: white;
-    padding: 10px;
+    padding: 15px;
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
-    border-bottom: 1px solid #444;
-    font-size: 14px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: var(--font-size-large);
     font-weight: bold;
     user-select: none;
+    height: 90px;
 }
 
 .editor-title {
@@ -296,16 +305,16 @@ body {
 }
 
 .editor-title i {
-    margin-right: 6px;
-    font-size: 16px;
+    margin-right: 15px;
+    font-size: 37px;
 }
 
 .editor-title .fa-html5 {
-    color: #e44d26;
+    color: #ffe6ff;
 }
 
 .editor-title .fa-css3-alt {
-    color: #264de4;
+    color: #ffe6ff;
 }
 
 .editor-actions {
@@ -318,7 +327,7 @@ body {
 .div-codemirror > div:nth-child(2) {
     flex: 1;
     overflow: hidden;
-    height: calc(100% - 40px);
+    height: calc(100% - 60px);
     width: 100%;
 }
 
@@ -327,12 +336,12 @@ body {
 /* Стили для iframe */
 /* Добавляем стиль для body внутри iframe */
 iframe {
-    color-scheme: dark;
+    color-scheme: light;
 }
 
 iframe html, iframe body {
-    background-color: #1a1a1a;
-    color: #e0e0e0;
+    background-color: #ffffff;
+    color: #333333;
 }
 
 /* Стили для iframe в полноэкранном режиме удалены */
@@ -361,15 +370,21 @@ iframe html, iframe body {
 /* Labels */
 label i {
     margin-right: 10px;
+    font-size: 22px;
 }
 
 label {
     display: flex;
     align-items: center;
-    background: #000;
-    height: 30px;
-    padding: 0 10px;
+    background: var(--accent-color);
+    border-top-right-radius: 8px;
+    border-top-left-radius: 8px;
+    height: 90px;
+    padding: 0 15px;
     transition: background-color var(--transition-speed);
+    font-size: var(--font-size-large);
+    font-weight: bold;
+    color: white;
 }
 
 /* Error notification */
@@ -421,7 +436,7 @@ label {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    background: linear-gradient(135deg, rgba(248, 245, 255, 0.8), rgba(232, 224, 255, 0.7));
     backdrop-filter: blur(15px);
     display: flex;
     justify-content: center;
@@ -430,13 +445,13 @@ label {
 }
 
 .login-content {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(248, 245, 255, 0.9));
     padding: 40px;
     border-radius: 20px;
     text-align: center;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     max-width: 90%;
-    width: 400px;
+    width: 600px;
     border: 1px solid rgba(255, 255, 255, 0.3);
     animation: fadeIn 0.5s ease-out;
     position: relative;
@@ -451,9 +466,9 @@ label {
     right: 0;
     bottom: 0;
     background: linear-gradient(45deg,
-        rgba(189, 147, 249, 0.1),
-        rgba(255, 121, 198, 0.1),
-        rgba(80, 250, 123, 0.1)
+        rgba(189, 147, 249, 0.2),
+        rgba(157, 101, 245, 0.2),
+        rgba(189, 147, 249, 0.1)
     );
     z-index: 0;
 }
@@ -464,9 +479,9 @@ label {
 }
 
 .login-content h2 {
-    color: #2c2c2c;
+    color: #b984ff;
     margin-bottom: 30px;
-    font-size: 28px;
+    font-size: 50px;
     font-weight: 600;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     letter-spacing: 1px;
@@ -484,17 +499,17 @@ label {
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: var(--font-size-base);
     transition: all var(--transition-speed);
 }
 
 .login-btn {
     background: linear-gradient(145deg, #bd93f9, #9d65f5);
     color: white;
-    padding: 12px 30px;
+    padding: 12px 27px;
     border: none;
     border-radius: 25px;
-    font-size: 16px;
+    font-size: 40px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -538,12 +553,12 @@ label {
 
 .form-group input {
     width: 100%;
-    padding: 12px;
+    padding: 22px;
     border: 2px solid rgba(189, 147, 249, 0.3);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.9);
     color: #2c2c2c;
-    font-size: 16px;
+    font-size: 24px;
     transition: all 0.3s ease;
 }
 
@@ -569,7 +584,7 @@ label {
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 26px;
     transition: all var(--transition-speed);
 }
 
@@ -602,20 +617,20 @@ label {
 
 /* Добавим стили для индикатора сохранения */
 .last-editor {
-    font-size: 12px;
+    font-size: 18px;
     opacity: 0.8;
     margin-left: 5px;
     transition: all 0.3s ease;
 }
 
 .last-editor.updated {
-    color: #4caf50;
+    color: #f4c8ff;
     font-weight: bold;
     animation: fadeInOut 2s ease;
 }
 
 .last-editor.saving {
-    color: #2196f3;
+    color: #f4c8ff;
     animation: pulseSaving 1.5s infinite;
 }
 
@@ -911,7 +926,7 @@ label {
 }
 
 .button-label {
-    font-size: 18px;
+    font-size: var(--font-size-base);
     font-weight: 600;
     letter-spacing: 1px;
     margin-top: 8px;
@@ -945,7 +960,7 @@ label {
     }
 
     .mobile-device .editor-title {
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .mobile-device .editor-actions button {
@@ -979,6 +994,39 @@ label {
 .mobile-device .login-modal {
     align-items: flex-start;
     padding-top: 10vh;
+}
+
+/* Стили для разделителя редакторов */
+.editor-resizer {
+    height: 10px;
+    background-color: var(--bg-color);
+    cursor: row-resize;
+    margin: 5px 0;
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resizer-handle {
+    width: 50px;
+    height: 5px;
+    background-color: var(--accent-color);
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.editor-resizer:hover .resizer-handle {
+    background-color: var(--button-color);
+    height: 7px;
+    transform: scale(1.2);
+}
+
+.editor-resizer.dragging .resizer-handle {
+    background-color: var(--button-hover-color);
+    height: 8px;
+    transform: scale(1.3);
 }
 
 /* Оптимизация перетаскивания разделителя */
@@ -1055,7 +1103,7 @@ label {
 
 .notification-message {
     flex: 1;
-    font-size: 14px;
+    font-size: var(--font-size-small);
 }
 
 .notification-close {
@@ -1099,20 +1147,20 @@ label {
 
 /* Стили для подсветки изменений diff-match-patch */
 @keyframes fadeOut {
-  0% { background-color: rgba(0, 255, 0, 0.4); }
-  50% { background-color: rgba(0, 255, 0, 0.2); }
-  100% { background-color: rgba(0, 255, 0, 0); }
+  0% { background-color: rgba(157, 101, 245, 0.4); }
+  50% { background-color: rgba(157, 101, 245, 0.2); }
+  100% { background-color: rgba(157, 101, 245, 0); }
 }
 
 .diff-insert {
-  background-color: rgba(0, 255, 0, 0.2);
+  background-color: rgba(157, 101, 245, 0.2);
   text-decoration: none;
   animation: fadeOut 3s forwards;
   border-radius: 2px;
 }
 
 .diff-delete {
-  background-color: rgba(255, 0, 0, 0.2);
+  background-color: rgba(255, 121, 198, 0.2);
   text-decoration: line-through;
   opacity: 0.7;
   border-radius: 2px;

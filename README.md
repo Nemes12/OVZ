@@ -46,16 +46,6 @@ npm start
 
 После запуска приложение будет доступно по адресу: `http://localhost:3000`
 
-## Деплой на Render
-
-1. Зарегистрируйтесь на [Render](https://render.com/)
-2. Создайте новый Web Service
-3. Свяжите с репозиторием GitHub
-4. Настройте:
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Environment Variables**: Добавьте `PORT=10000` (или другой порт)
-
 ## Структура проекта
 
 - `server.js` - основной файл сервера
